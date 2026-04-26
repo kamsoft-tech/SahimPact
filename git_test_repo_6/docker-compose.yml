@@ -1,0 +1,59 @@
+# IYI Partner Ledger - VPS Deployment Guide
+
+This is a clean, production-ready export of the IYI Partner Ledger. Both the backend and frontend are ready to be uploaded to your VPS (Virtual Private Server) or pushed to a Git repository. 
+
+All heavy local virtual environments (`venv`, `node_modules`) and local development databases (`iyipl.db`) have been stripped out to ensure a clean upload.
+
+## Prerequisites on your VPS
+1. **Python 3.10+**
+2. **Node.js 18+** & **npm**
+3. **Git** (optional, if you're pulling from your repository)
+
+---
+
+## 1. Backend Setup (FastAPI)
+
+1. Navigate into the backend folder:
+   ```bash
+   cd iyipl-backend
+   ```
+2. Create a clean Python Virtual Environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows VPS, use `venv\Scripts\activate`
+   ```
+3. Install the dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Start the backend server (we recommend using PM2 or Systemd for keeping it alive in production):
+   ```bash
+   # For testing/running normally:
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+   *Note: Because the database was excluded from this clean export, running `uvicorn` the first time will automatically generate a brand new, empty multi-tenant database. You will need to log in with `admin` / `admin` to access the Super Admin Console and create your first company.*
+
+---
+
+## 2. Frontend Setup (React/Vite)
+
+1. Navigate to the frontend folder:
+   ```bash
+   cd iyipl-frontend
+   ```
+2. Install the clean Node modules:
+   ```bash
+   npm install
+   ```
+3. Build the frontend for production:
+   ```bash
+   npm run build
+   ```
+4. Host the built files. 
+   You can serve the `dist/` folder using **Nginx**, **Apache**, or a simple Node server:
+   ```bash
+   # Quick way using serve
+   npm install -g serve
+   serve -s dist -l 5173
+   ```
+   *Note: If your backend is deployed to a different URL/IP than `localhost:8000`, make sure to update the fetch URLs inside the React code before running `npm run build`.*
