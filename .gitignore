@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# SahimPact specific
+*.zip
+*.log
+sahimpact-backend/uploads/*
+!sahimpact-backend/uploads/.gitkeep

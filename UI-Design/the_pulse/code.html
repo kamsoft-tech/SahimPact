@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SahimPact - The Pulse</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container": "#1c1f28",
+                      "on-tertiary-fixed-variant": "#6e3638",
+                      "secondary-fixed": "#e1e0ff",
+                      "on-primary": "#003921",
+                      "on-secondary-fixed-variant": "#3e417a",
+                      "on-secondary": "#272a62",
+                      "inverse-surface": "#e0e2ee",
+                      "surface-dim": "#10131c",
+                      "surface-bright": "#363943",
+                      "on-secondary-container": "#adb0f0",
+                      "on-surface-variant": "#bfc9c0",
+                      "error-container": "#93000a",
+                      "primary-fixed": "#b0f1c8",
+                      "primary": "#94d4ad",
+                      "on-background": "#e0e2ee",
+                      "inverse-primary": "#2b6a4a",
+                      "on-error-container": "#ffdad6",
+                      "surface": "#10131c",
+                      "surface-container-highest": "#32343e",
+                      "tertiary-fixed-dim": "#ffb3b4",
+                      "surface-variant": "#32343e",
+                      "surface-container-lowest": "#0b0e16",
+                      "tertiary-fixed": "#ffdad9",
+                      "surface-tint": "#94d4ad",
+                      "secondary-container": "#3e417a",
+                      "on-tertiary-fixed": "#380b10",
+                      "outline": "#8a938b",
+                      "on-surface": "#e0e2ee",
+                      "secondary-fixed-dim": "#bfc1ff",
+                      "primary-container": "#5f9d7a",
+                      "outline-variant": "#404942",
+                      "on-primary-fixed-variant": "#0c5134",
+                      "surface-container-low": "#181b24",
+                      "on-tertiary": "#532023",
+                      "error": "#ffb4ab",
+                      "background": "#10131c",
+                      "on-primary-container": "#00311c",
+                      "tertiary": "#ffb3b4",
+                      "inverse-on-surface": "#2d303a",
+                      "surface-container-high": "#272a33",
+                      "tertiary-container": "#c57d7f",
+                      "on-error": "#690005",
+                      "on-secondary-fixed": "#11134c",
+                      "secondary": "#bfc1ff",
+                      "on-primary-fixed": "#002111",
+                      "primary-fixed-dim": "#94d4ad",
+                      "on-tertiary-container": "#4a1a1d"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "sm": "8px",
+                      "md": "16px",
+                      "gutter": "16px",
+                      "unit": "4px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "container-padding": "24px"
+              },
+              "fontFamily": {
+                      "headline-lg": [
+                              "Manrope"
+                      ],
+                      "label-bold": [
+                              "Manrope"
+                      ],
+                      "headline-xl": [
+                              "Manrope"
+                      ],
+                      "body-md": [
+                              "Manrope"
+                      ],
+                      "caption": [
+                              "Manrope"
+                      ],
+                      "label-sm": [
+                              "Manrope"
+                      ],
+                      "body-lg": [
+                              "Manrope"
+                      ],
+                      "headline-md": [
+                              "Manrope"
+                      ]
+              },
+              "fontSize": {
+                      "headline-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-bold": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-xl": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "caption": [
+                              "11px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface antialiased font-body-md h-screen overflow-hidden flex">
+<!-- SideNavBar Component -->
+<nav class="bg-[#1A1D26] dark:bg-[#1A1D26] h-screen w-64 border-r border-[#1F222C] flex flex-col fixed left-0 top-0 h-full overflow-y-auto font-manrope antialiased tracking-tight z-50">
+<!-- Header -->
+<div class="p-6 border-b border-[#1F222C]">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-8 h-8 rounded-full bg-[#569471] flex items-center justify-center text-white font-bold text-sm">
+                    EQ
+                </div>
+<div>
+<h1 class="text-xl font-extrabold text-[#569471] tracking-tighter">SahimPact</h1>
+<p class="text-slate-400 text-xs">Partner Portal</p>
+</div>
+</div>
+<button class="w-full bg-[#569471] text-white rounded-md py-2 px-4 text-sm font-semibold hover:bg-[#4a8062] transition-colors active:scale-95 transform transition-transform">
+                New Company
+            </button>
+</div>
+<!-- Main Tabs -->
+<div class="flex-1 py-4 flex flex-col gap-1">
+<a class="bg-[#11131A] text-[#569471] font-bold border-l-4 border-[#569471] px-4 py-3 flex items-center gap-3 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="text-sm">The Pulse</span>
+</a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-3 flex items-center gap-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">handshake</span>
+<span class="text-sm">Partnerships</span>
+</a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-3 flex items-center gap-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="text-sm">Ledger</span>
+</a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-3 flex items-center gap-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="text-sm">Time Log</span>
+</a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-3 flex items-center gap-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">settings_suggest</span>
+<span class="text-sm">System Config</span>
+</a>
+</div>
+<!-- Footer Tabs -->
+<div class="p-4 border-t border-[#1F222C] flex flex-col gap-1">
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 flex items-center gap-3 hover:bg-[#11131A] rounded-md transition-all duration-200" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-sm">Account</span>
+</a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 flex items-center gap-3 hover:bg-[#11131A] rounded-md transition-all duration-200" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="text-sm">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Wrapper -->
+<div class="flex-1 flex flex-col ml-64 min-w-0 h-screen overflow-hidden">
+<!-- TopAppBar Component -->
+<header class="bg-[#12141C]/90 backdrop-blur-md w-full h-16 border-b border-[#1F222C] sticky top-0 z-40 flex items-center justify-between px-6">
+<!-- Left: Search -->
+<div class="flex items-center w-96 relative">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-sm">search</span>
+<input class="w-full bg-[#1A1D26] border border-[#1F222C] rounded-md py-1.5 pl-9 pr-4 text-sm text-slate-200 focus:ring-2 focus:ring-[#569471] outline-none font-manrope text-sm font-medium" placeholder="Search..." type="text"/>
+</div>
+<!-- Brand (Hidden on smaller screens, standard practice for medium type) -->
+<div class="hidden md:block text-lg font-bold text-slate-100 font-manrope absolute left-1/2 transform -translate-x-1/2">
+</div>
+<!-- Right: Actions & Profile -->
+<div class="flex items-center gap-2">
+<button class="text-slate-400 hover:text-slate-200 hover:bg-[#1A1D26] rounded-md p-2 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-slate-400 hover:text-slate-200 hover:bg-[#1A1D26] rounded-md p-2 transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<button class="text-slate-400 hover:text-slate-200 hover:bg-[#1A1D26] rounded-md p-2 transition-colors">
+<span class="material-symbols-outlined">tune</span>
+</button>
+<div class="ml-4 w-8 h-8 rounded-full overflow-hidden border border-[#1F222C] cursor-pointer">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Default user avatar placeholder with initials" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUvCbaqkm-YgGW32d72NfzHwzUpR0cVP0C9PrVaBr5BLFDIcSVZ6uqtGQDuzk_yYPAymUzID47soibrSL2O6yzlUeT0W6rHEIvUP-NQQRP47XUsCZAxkwNsjPr-u137HuaY1eOVlz7raLhiNYZJjPHuwRxAHSz-yy9EmgRSl30VV6K_wf-pmKS4NQ9A_lvd4GKBnyqlW3TeumAN_ruuokpapoH2GrIvGXNPVo-YQUPo0Z8Yp5nDriZDUmY1txkPfWiXaBFmBCAp5jX"/>
+</div>
+</div>
+</header>
+<!-- Canvas Area -->
+<main class="flex-1 overflow-y-auto p-container-padding space-y-xl bg-background">
+<!-- Header Section -->
+<div class="flex items-end justify-between">
+<div>
+<h2 class="font-headline-xl text-headline-xl text-on-surface">The Pulse</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Real-time financial overview and operational metrics.</p>
+</div>
+<div class="flex items-center gap-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Last updated: Just now</span>
+<button class="text-outline hover:text-on-surface p-1 rounded transition-colors">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+</button>
+</div>
+</div>
+<!-- KPI Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<!-- KPI Card 1 -->
+<div class="bg-surface-container border border-surface-variant rounded-xl p-lg flex flex-col justify-between h-[140px]">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Total Gross Revenue</span>
+<span class="material-symbols-outlined text-[20px]">payments</span>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-primary">$4.28M</div>
+<div class="flex items-center gap-1 mt-1 text-primary-container font-caption text-caption">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>
+<span>+12.4% vs last month</span>
+</div>
+</div>
+</div>
+<!-- KPI Card 2 -->
+<div class="bg-surface-container border border-surface-variant rounded-xl p-lg flex flex-col justify-between h-[140px]">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm uppercase tracking-wider">MTD Expenses</span>
+<span class="material-symbols-outlined text-[20px]">receipt_long</span>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-on-surface">$842.1K</div>
+<div class="flex items-center gap-1 mt-1 text-error font-caption text-caption">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>
+<span>+2.1% vs last month</span>
+</div>
+</div>
+</div>
+<!-- KPI Card 3 -->
+<div class="bg-surface-container border border-surface-variant rounded-xl p-lg flex flex-col justify-between h-[140px]">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Est. Net Profit</span>
+<span class="material-symbols-outlined text-[20px]">account_balance</span>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-on-surface">$3.43M</div>
+<div class="flex items-center gap-1 mt-1 text-primary-container font-caption text-caption">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>
+<span>+15.2% vs last month</span>
+</div>
+</div>
+</div>
+<!-- KPI Card 4 -->
+<div class="bg-surface-container border border-surface-variant rounded-xl p-lg flex flex-col justify-between h-[140px]">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Retained Contingency</span>
+<span class="material-symbols-outlined text-[20px]">savings</span>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-on-surface">$450.0K</div>
+<div class="flex items-center gap-1 mt-1 text-on-surface-variant font-caption text-caption">
+<span class="material-symbols-outlined text-[14px]">horizontal_rule</span>
+<span>Unchanged</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bento Grid: Profit Designation & Insights -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Profit Designation (Takes 2 columns) -->
+<div class="lg:col-span-2 bg-surface-container border border-surface-variant rounded-xl p-lg flex flex-col">
+<div class="flex items-center justify-between mb-lg">
+<h3 class="font-headline-md text-headline-md text-on-surface">Profit Designation</h3>
+<button class="text-outline hover:text-on-surface">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-xl flex-1 items-center">
+<!-- Capital Pool Ring -->
+<div class="flex flex-col items-center gap-md border-r border-surface-variant pr-xl">
+<div class="relative w-32 h-32">
+<svg class="w-full h-full -rotate-90" viewbox="0 0 100 100">
+<circle class="text-surface-variant" cx="50" cy="50" fill="none" r="40" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-primary" cx="50" cy="50" fill="none" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="75.36" stroke-width="12"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-headline-md text-headline-md text-on-surface">70%</span>
+</div>
+</div>
+<div class="text-center">
+<div class="font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider">Capital Pool</div>
+<div class="font-body-lg text-body-lg text-on-surface mt-1">$2.40M</div>
+</div>
+</div>
+<!-- Labour Pool Ring -->
+<div class="flex flex-col items-center gap-md pl-xl">
+<div class="relative w-32 h-32">
+<svg class="w-full h-full -rotate-90" viewbox="0 0 100 100">
+<circle class="text-surface-variant" cx="50" cy="50" fill="none" r="40" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-secondary" cx="50" cy="50" fill="none" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="175.84" stroke-width="12"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-headline-md text-headline-md text-on-surface">30%</span>
+</div>
+</div>
+<div class="text-center">
+<div class="font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider">Labour Pool</div>
+<div class="font-body-lg text-body-lg text-on-surface mt-1">$1.03M</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activity / Insights -->
+<div class="bg-surface-container border border-surface-variant rounded-xl p-lg flex flex-col">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md">Quick Actions</h3>
+<div class="flex flex-col gap-sm">
+<button class="w-full bg-surface-dim hover:bg-surface border border-surface-variant rounded-lg p-3 flex items-center justify-between transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">add_circle</span>
+<span class="font-label-sm text-label-sm text-on-surface">Log Capital Injection</span>
+</div>
+<span class="material-symbols-outlined text-outline text-sm">chevron_right</span>
+</button>
+<button class="w-full bg-surface-dim hover:bg-surface border border-surface-variant rounded-lg p-3 flex items-center justify-between transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">assignment</span>
+<span class="font-label-sm text-label-sm text-on-surface">Review Pending Draws</span>
+</div>
+<span class="material-symbols-outlined text-outline text-sm">chevron_right</span>
+</button>
+<button class="w-full bg-surface-dim hover:bg-surface border border-surface-variant rounded-lg p-3 flex items-center justify-between transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline">tune</span>
+<span class="font-label-sm text-label-sm text-on-surface">Adjust Split Ratios</span>
+</div>
+<span class="material-symbols-outlined text-outline text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Partner Payout Accrual Table -->
+<div class="bg-surface-container border border-surface-variant rounded-xl flex flex-col overflow-hidden">
+<div class="p-lg border-b border-surface-variant flex items-center justify-between">
+<h3 class="font-headline-md text-headline-md text-on-surface">Partner Payout Accrual</h3>
+<button class="font-label-sm text-label-sm text-primary hover:text-primary-container transition-colors">View Complete Ledger</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-dim border-b border-surface-variant">
+<th class="p-4 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider">Partner Entity</th>
+<th class="p-4 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider text-right">Base Draw</th>
+<th class="p-4 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider text-right">Profit Share</th>
+<th class="p-4 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider text-right">YTD Total</th>
+<th class="p-4 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider text-center">Status</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<tr class="border-b border-surface-variant hover:bg-surface transition-colors">
+<td class="p-4 font-medium flex items-center gap-3">
+<div class="w-6 h-6 rounded bg-primary-container/20 flex items-center justify-center text-primary text-xs font-bold">AL</div>
+                                    Alpha Capital LLC
+                                </td>
+<td class="p-4 text-right">$45,000</td>
+<td class="p-4 text-right">$125,400</td>
+<td class="p-4 text-right font-semibold">$170,400</td>
+<td class="p-4 text-center">
+<span class="inline-block px-2 py-1 rounded bg-primary/10 text-primary font-caption text-caption border border-primary/20">Cleared</span>
+</td>
+</tr>
+<tr class="border-b border-surface-variant hover:bg-surface transition-colors">
+<td class="p-4 font-medium flex items-center gap-3">
+<div class="w-6 h-6 rounded bg-secondary/20 flex items-center justify-center text-secondary text-xs font-bold">VX</div>
+                                    Vanguard Equities
+                                </td>
+<td class="p-4 text-right">$35,000</td>
+<td class="p-4 text-right">$98,200</td>
+<td class="p-4 text-right font-semibold">$133,200</td>
+<td class="p-4 text-center">
+<span class="inline-block px-2 py-1 rounded bg-surface-bright text-on-surface-variant font-caption text-caption border border-surface-variant">Pending</span>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="p-4 font-medium flex items-center gap-3">
+<div class="w-6 h-6 rounded bg-tertiary-container/20 flex items-center justify-center text-tertiary text-xs font-bold">OR</div>
+                                    Orion Partners Group
+                                </td>
+<td class="p-4 text-right">$60,000</td>
+<td class="p-4 text-right">$150,000</td>
+<td class="p-4 text-right font-semibold">$210,000</td>
+<td class="p-4 text-center">
+<span class="inline-block px-2 py-1 rounded bg-primary/10 text-primary font-caption text-caption border border-primary/20">Cleared</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+</body></html>

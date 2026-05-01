@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SahimPact - System Config</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Manrope -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config from Design System -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container": "#1c1f28",
+                    "on-tertiary-fixed-variant": "#6e3638",
+                    "secondary-fixed": "#e1e0ff",
+                    "on-primary": "#003921",
+                    "on-secondary-fixed-variant": "#3e417a",
+                    "on-secondary": "#272a62",
+                    "inverse-surface": "#e0e2ee",
+                    "surface-dim": "#10131c",
+                    "surface-bright": "#363943",
+                    "on-secondary-container": "#adb0f0",
+                    "on-surface-variant": "#bfc9c0",
+                    "error-container": "#93000a",
+                    "primary-fixed": "#b0f1c8",
+                    "primary": "#94d4ad",
+                    "on-background": "#e0e2ee",
+                    "inverse-primary": "#2b6a4a",
+                    "on-error-container": "#ffdad6",
+                    "surface": "#10131c",
+                    "surface-container-highest": "#32343e",
+                    "tertiary-fixed-dim": "#ffb3b4",
+                    "surface-variant": "#32343e",
+                    "surface-container-lowest": "#0b0e16",
+                    "tertiary-fixed": "#ffdad9",
+                    "surface-tint": "#94d4ad",
+                    "secondary-container": "#3e417a",
+                    "on-tertiary-fixed": "#380b10",
+                    "outline": "#8a938b",
+                    "on-surface": "#e0e2ee",
+                    "secondary-fixed-dim": "#bfc1ff",
+                    "primary-container": "#5f9d7a",
+                    "outline-variant": "#404942",
+                    "on-primary-fixed-variant": "#0c5134",
+                    "surface-container-low": "#181b24",
+                    "on-tertiary": "#532023",
+                    "error": "#ffb4ab",
+                    "background": "#10131c",
+                    "on-primary-container": "#00311c",
+                    "tertiary": "#ffb3b4",
+                    "inverse-on-surface": "#2d303a",
+                    "surface-container-high": "#272a33",
+                    "tertiary-container": "#c57d7f",
+                    "on-error": "#690005",
+                    "on-secondary-fixed": "#11134c",
+                    "secondary": "#bfc1ff",
+                    "on-primary-fixed": "#002111",
+                    "primary-fixed-dim": "#94d4ad",
+                    "on-tertiary-container": "#4a1a1d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "md": "16px",
+                    "gutter": "16px",
+                    "unit": "4px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "lg": "24px",
+                    "container-padding": "24px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Manrope"],
+                    "label-bold": ["Manrope"],
+                    "headline-xl": ["Manrope"],
+                    "body-md": ["Manrope"],
+                    "caption": ["Manrope"],
+                    "label-sm": ["Manrope"],
+                    "body-lg": ["Manrope"],
+                    "headline-md": ["Manrope"]
+            },
+            "fontSize": {
+                    "headline-lg": ["24px", { "lineHeight": "1.3", "fontWeight": "700" }],
+                    "label-bold": ["12px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                    "headline-xl": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                    "body-md": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                    "caption": ["11px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                    "label-sm": ["12px", { "lineHeight": "1.2", "fontWeight": "500" }],
+                    "body-lg": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                    "headline-md": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- App Layout Container -->
+<div class="flex min-h-screen">
+<!-- SideNavBar (Shared Component) -->
+<nav class="flex flex-col fixed left-0 top-0 h-full overflow-y-auto bg-[#1A1D26] dark:bg-[#1A1D26] font-manrope antialiased tracking-tight h-screen w-64 border-r border-[#1F222C] z-50">
+<!-- Brand Area -->
+<div class="p-lg flex items-center gap-md border-b border-[#1F222C]">
+<div class="w-8 h-8 rounded-md bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">dataset</span>
+</div>
+<div>
+<h1 class="text-xl font-extrabold text-[#569471] tracking-tighter">SahimPact</h1>
+<p class="font-caption text-caption text-on-surface-variant">Partner Portal</p>
+</div>
+</div>
+<!-- Main Tabs -->
+<div class="flex-1 py-md space-y-xs">
+<a class="flex items-center gap-sm text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-sm text-label-sm">The Pulse</span>
+</a>
+<a class="flex items-center gap-sm text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">handshake</span>
+<span class="font-label-sm text-label-sm">Partnerships</span>
+</a>
+<a class="flex items-center gap-sm text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-sm text-label-sm">Ledger</span>
+</a>
+<a class="flex items-center gap-sm text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="font-label-sm text-label-sm">Time Log</span>
+</a>
+<!-- Active Tab -->
+<a class="flex items-center gap-sm bg-[#11131A] text-[#569471] font-bold border-l-4 border-[#569471] px-4 py-3 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings_suggest</span>
+<span class="font-label-sm text-label-sm">System Config</span>
+</a>
+</div>
+<!-- Footer Section -->
+<div class="p-md border-t border-[#1F222C] space-y-sm">
+<button class="w-full bg-primary-container text-on-primary-container font-label-bold text-label-bold py-sm px-md rounded hover:bg-primary transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-sm">add</span>
+                    New Company
+                </button>
+<div class="pt-sm space-y-xs">
+<a class="flex items-center gap-sm text-slate-400 hover:text-slate-200 px-4 py-2 rounded-md hover:bg-[#11131A] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-sm">person</span>
+<span class="font-label-sm text-label-sm">Account</span>
+</a>
+<a class="flex items-center gap-sm text-slate-400 hover:text-slate-200 px-4 py-2 rounded-md hover:bg-[#11131A] transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span class="font-label-sm text-label-sm">Logout</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 min-h-screen bg-background flex flex-col relative">
+<!-- TopAppBar (Shared Component) -->
+<header class="flex items-center justify-between px-6 bg-[#12141C]/90 backdrop-blur-md w-full h-16 border-b border-[#1F222C] sticky top-0 z-40">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-slate-400">search</span>
+<input class="bg-transparent border-none outline-none text-slate-100 font-body-md text-body-md placeholder-slate-500 focus:ring-0 w-64" placeholder="Search system resources..." type="text"/>
+</div>
+<div class="hidden md:block text-lg font-bold text-slate-100 absolute left-1/2 -translate-x-1/2">
+                    SahimPact Console
+                </div>
+<div class="flex items-center gap-xs text-[#569471]">
+<button class="hover:bg-[#1A1D26] rounded-md p-2 text-slate-400 transition-colors focus:ring-2 focus:ring-[#569471] outline-none">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hover:bg-[#1A1D26] rounded-md p-2 text-slate-400 transition-colors focus:ring-2 focus:ring-[#569471] outline-none">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<button class="hover:bg-[#1A1D26] rounded-md p-2 text-[#569471] transition-colors focus:ring-2 focus:ring-[#569471] outline-none">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">tune</span>
+</button>
+<div class="ml-sm pl-sm border-l border-[#1F222C]">
+<img alt="Admin User" class="w-8 h-8 rounded-full border border-surface-variant cursor-pointer object-cover" data-alt="close up headshot of male professional in dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZBRoK4w90GKaiNOupfhds1TffEdgdI5ilYzMkXtczjHi1N2I8cZ_JgwQ2sQucrtqtty2zXFBEIwzzfMZoPkiQ0n-Ea2Cv8pcUgY08kkNmQO7plwFEzQuXjF11pVRtcv0YE4cmn8_KPLxvpnzPG-Mhr5zgJyilQPCE7ZPXJmga47COM8-jmM2c5f_LcLBheVxqOIF96PT_FZNK4Kr3JKrP3lBPSCXj9ATCORHP09wxtWJigQk2w_7f1Kx4j8p7Ta3dn8InGEDYSVlg"/>
+</div>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="flex-1 p-xl max-w-7xl mx-auto w-full space-y-xl">
+<!-- Page Header -->
+<div>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mb-xs">Super Admin Console</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage global system entities and partnership onboarding.</p>
+</div>
+<!-- Registered Companies Section -->
+<section class="space-y-md">
+<div class="flex items-center justify-between border-b border-surface-variant pb-sm">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">domain</span>
+                            Registered Companies
+                        </h3>
+<span class="bg-surface-container-highest px-sm py-xs rounded text-on-surface-variant font-label-bold text-label-bold">4 Entities Active</span>
+</div>
+<!-- Grid Layout for Companies -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+<!-- Company Card 1 -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-md flex flex-col gap-lg hover:border-primary transition-colors group">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface mb-xs group-hover:text-primary transition-colors">Acme Corp Logistics</h4>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">tag</span>
+                                        ID: CMP-9821-A
+                                    </p>
+</div>
+<div class="bg-primary-container/20 text-primary px-xs py-xs rounded font-caption text-caption border border-primary/30">
+                                    Active
+                                </div>
+</div>
+<div class="space-y-sm">
+<div class="flex items-center gap-sm text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-sm text-outline">calendar_today</span>
+<span>Created: Oct 12, 2023</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-sm text-outline">group</span>
+<span>3 Admins</span>
+</div>
+</div>
+<div class="flex items-center gap-sm pt-sm border-t border-surface-variant mt-auto">
+<button class="flex-1 flex items-center justify-center gap-xs bg-surface-container-highest hover:bg-surface-bright text-primary font-label-sm text-label-sm py-sm px-sm rounded transition-colors border border-outline-variant">
+<span class="material-symbols-outlined text-sm">person_add</span>
+                                    + Add Admin
+                                </button>
+<button class="p-sm text-error hover:bg-error-container rounded transition-colors border border-transparent hover:border-error/30" title="Delete Entity">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+<!-- Company Card 2 -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-md flex flex-col gap-lg hover:border-primary transition-colors group">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface mb-xs group-hover:text-primary transition-colors">Nexus Heavy Industries</h4>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">tag</span>
+                                        ID: CMP-1044-N
+                                    </p>
+</div>
+<div class="bg-primary-container/20 text-primary px-xs py-xs rounded font-caption text-caption border border-primary/30">
+                                    Active
+                                </div>
+</div>
+<div class="space-y-sm">
+<div class="flex items-center gap-sm text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-sm text-outline">calendar_today</span>
+<span>Created: Jan 05, 2024</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-sm text-outline">group</span>
+<span>1 Admin</span>
+</div>
+</div>
+<div class="flex items-center gap-sm pt-sm border-t border-surface-variant mt-auto">
+<button class="flex-1 flex items-center justify-center gap-xs bg-surface-container-highest hover:bg-surface-bright text-primary font-label-sm text-label-sm py-sm px-sm rounded transition-colors border border-outline-variant">
+<span class="material-symbols-outlined text-sm">person_add</span>
+                                    + Add Admin
+                                </button>
+<button class="p-sm text-error hover:bg-error-container rounded transition-colors border border-transparent hover:border-error/30" title="Delete Entity">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+<!-- Company Card 3 -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-md flex flex-col gap-lg hover:border-primary transition-colors group opacity-80">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-headline-md text-on-surface mb-xs group-hover:text-primary transition-colors">Veridian Dynamics</h4>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">tag</span>
+                                        ID: CMP-7730-V
+                                    </p>
+</div>
+<div class="bg-surface-container-highest text-on-surface-variant px-xs py-xs rounded font-caption text-caption border border-outline-variant">
+                                    Pending Review
+                                </div>
+</div>
+<div class="space-y-sm">
+<div class="flex items-center gap-sm text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-sm text-outline">calendar_today</span>
+<span>Created: Mar 18, 2024</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-sm text-outline">group</span>
+<span>0 Admins</span>
+</div>
+</div>
+<div class="flex items-center gap-sm pt-sm border-t border-surface-variant mt-auto">
+<button class="flex-1 flex items-center justify-center gap-xs bg-surface-container-highest hover:bg-surface-bright text-primary font-label-sm text-label-sm py-sm px-sm rounded transition-colors border border-outline-variant">
+<span class="material-symbols-outlined text-sm">person_add</span>
+                                    + Add Admin
+                                </button>
+<button class="p-sm text-error hover:bg-error-container rounded transition-colors border border-transparent hover:border-error/30" title="Delete Entity">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- New Company Onboarding Section (Form) -->
+<section class="bg-surface-container-highest rounded-xl border border-outline-variant overflow-hidden relative">
+<!-- Subtle top accent line -->
+<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary opacity-50"></div>
+<div class="p-lg md:p-xl space-y-lg">
+<div class="max-w-2xl">
+<h3 class="font-headline-lg text-headline-lg text-on-surface mb-xs flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">add_business</span>
+                                New Company Onboarding
+                            </h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Initialize a new partnership ledger. This will generate a unique internal ID and prompt an invitation to the designated primary admin.</p>
+</div>
+<form class="grid grid-cols-1 md:grid-cols-2 gap-x-lg gap-y-md">
+<!-- Company Name -->
+<div class="space-y-xs md:col-span-2">
+<label class="font-label-sm text-label-sm text-on-surface-variant block" for="companyName">Legal Entity Name</label>
+<input class="w-full bg-[#11131A] border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-sm py-sm text-on-surface font-body-md text-body-md placeholder-outline-variant transition-colors" id="companyName" placeholder="e.g. Globex Corporation" type="text"/>
+</div>
+<!-- Industry -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant block" for="industry">Industry Sector</label>
+<select class="w-full bg-[#11131A] border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-sm py-sm text-on-surface font-body-md text-body-md transition-colors appearance-none" id="industry">
+<option class="text-outline-variant" disabled="" selected="" value="">Select sector...</option>
+<option value="tech">Technology</option>
+<option value="logistics">Logistics</option>
+<option value="manufacturing">Manufacturing</option>
+<option value="finance">Financial Services</option>
+</select>
+</div>
+<!-- Ledger Currency -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant block" for="currency">Base Ledger Currency</label>
+<select class="w-full bg-[#11131A] border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-sm py-sm text-on-surface font-body-md text-body-md transition-colors appearance-none" id="currency">
+<option selected="" value="usd">USD - US Dollar</option>
+<option value="eur">EUR - Euro</option>
+<option value="gbp">GBP - British Pound</option>
+</select>
+</div>
+<div class="md:col-span-2 pt-sm border-t border-surface-variant mt-sm">
+<h4 class="font-label-bold text-label-bold text-on-surface mb-md">Primary Administrator Contact</h4>
+</div>
+<!-- Admin Name -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant block" for="adminName">Full Name</label>
+<input class="w-full bg-[#11131A] border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-sm py-sm text-on-surface font-body-md text-body-md placeholder-outline-variant transition-colors" id="adminName" placeholder="Jane Doe" type="text"/>
+</div>
+<!-- Admin Email -->
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant block" for="adminEmail">Corporate Email Address</label>
+<input class="w-full bg-[#11131A] border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-sm py-sm text-on-surface font-body-md text-body-md placeholder-outline-variant transition-colors" id="adminEmail" placeholder="admin@company.com" type="email"/>
+</div>
+<!-- Form Actions -->
+<div class="md:col-span-2 flex justify-end gap-sm pt-md mt-sm">
+<button class="px-lg py-sm font-label-bold text-label-bold text-on-surface hover:bg-surface-bright rounded transition-colors border border-transparent" type="button">
+                                    Cancel
+                                </button>
+<button class="px-lg py-sm font-label-bold text-label-bold bg-primary text-on-primary hover:bg-primary-fixed-dim rounded transition-colors shadow-sm flex items-center gap-xs" type="submit">
+<span class="material-symbols-outlined text-sm">rocket_launch</span>
+                                    Initialize Entity
+                                </button>
+</div>
+</form>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SahimPact - Time Logging</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#1c1f28",
+                        "on-tertiary-fixed-variant": "#6e3638",
+                        "secondary-fixed": "#e1e0ff",
+                        "on-primary": "#003921",
+                        "on-secondary-fixed-variant": "#3e417a",
+                        "on-secondary": "#272a62",
+                        "inverse-surface": "#e0e2ee",
+                        "surface-dim": "#10131c",
+                        "surface-bright": "#363943",
+                        "on-secondary-container": "#adb0f0",
+                        "on-surface-variant": "#bfc9c0",
+                        "error-container": "#93000a",
+                        "primary-fixed": "#b0f1c8",
+                        "primary": "#94d4ad",
+                        "on-background": "#e0e2ee",
+                        "inverse-primary": "#2b6a4a",
+                        "on-error-container": "#ffdad6",
+                        "surface": "#10131c",
+                        "surface-container-highest": "#32343e",
+                        "tertiary-fixed-dim": "#ffb3b4",
+                        "surface-variant": "#32343e",
+                        "surface-container-lowest": "#0b0e16",
+                        "tertiary-fixed": "#ffdad9",
+                        "surface-tint": "#94d4ad",
+                        "secondary-container": "#3e417a",
+                        "on-tertiary-fixed": "#380b10",
+                        "outline": "#8a938b",
+                        "on-surface": "#e0e2ee",
+                        "secondary-fixed-dim": "#bfc1ff",
+                        "primary-container": "#5f9d7a",
+                        "outline-variant": "#404942",
+                        "on-primary-fixed-variant": "#0c5134",
+                        "surface-container-low": "#181b24",
+                        "on-tertiary": "#532023",
+                        "error": "#ffb4ab",
+                        "background": "#10131c",
+                        "on-primary-container": "#00311c",
+                        "tertiary": "#ffb3b4",
+                        "inverse-on-surface": "#2d303a",
+                        "surface-container-high": "#272a33",
+                        "tertiary-container": "#c57d7f",
+                        "on-error": "#690005",
+                        "on-secondary-fixed": "#11134c",
+                        "secondary": "#bfc1ff",
+                        "on-primary-fixed": "#002111",
+                        "primary-fixed-dim": "#94d4ad",
+                        "on-tertiary-container": "#4a1a1d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "container-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Manrope"],
+                        "label-bold": ["Manrope"],
+                        "headline-xl": ["Manrope"],
+                        "body-md": ["Manrope"],
+                        "caption": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "body-lg": ["Manrope"],
+                        "headline-md": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["24px", { "lineHeight": "1.3", "fontWeight": "700" }],
+                        "label-bold": ["12px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "headline-xl": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "caption": ["11px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "1.2", "fontWeight": "500" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex">
+<!-- SideNavBar (Generated from JSON) -->
+<nav class="flex flex-col fixed left-0 top-0 h-full overflow-y-auto bg-[#1A1D26] dark:bg-[#1A1D26] h-screen w-64 border-r border-[#1F222C] font-manrope antialiased tracking-tight z-50">
+<div class="p-6 border-b border-[#1F222C]">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant icon-fill" data-icon="person">person</span>
+</div>
+<div>
+<h1 class="text-xl font-extrabold text-[#569471] tracking-tighter">SahimPact</h1>
+<p class="text-xs text-slate-400">Partner Portal</p>
+</div>
+</div>
+<button class="w-full bg-[#569471] hover:bg-[#4a8060] text-white font-label-bold py-2 rounded-DEFAULT transition-colors duration-200 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span> New Company
+            </button>
+</div>
+<div class="flex-1 py-4 flex flex-col gap-1">
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm">The Pulse</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="handshake">handshake</span>
+<span class="font-label-sm">Partnerships</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-label-sm">Ledger</span>
+</a>
+<a class="flex items-center gap-3 bg-[#11131A] text-[#569471] font-bold border-l-4 border-[#569471] px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="timer">timer</span>
+<span class="font-label-sm">Time Log</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="settings_suggest">settings_suggest</span>
+<span class="font-label-sm">System Config</span>
+</a>
+</div>
+<div class="mt-auto border-t border-[#1F222C] py-4 flex flex-col gap-1">
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm">Account</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-4 py-3 hover:bg-[#11131A] transition-all duration-200 active:scale-95 transform transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-label-sm">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 flex flex-col min-h-screen bg-surface">
+<!-- TopAppBar (Generated from JSON) -->
+<header class="flex items-center justify-between px-6 bg-[#12141C]/90 backdrop-blur-md w-full h-16 border-b border-[#1F222C] sticky top-0 z-40 font-manrope text-sm font-medium">
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" data-icon="search">search</span>
+<input class="bg-surface-dim border border-[#1F222C] rounded-md pl-10 pr-4 py-1.5 text-on-surface focus:ring-2 focus:ring-[#569471] outline-none w-64 transition-all focus:bg-[#11131A]" placeholder="Search..." type="text"/>
+</div>
+</div>
+<div class="hidden md:block text-lg font-bold text-slate-100 absolute left-1/2 -translate-x-1/2 pointer-events-none">SahimPact</div>
+<div class="flex items-center gap-2">
+<button class="text-slate-400 hover:bg-[#1A1D26] rounded-md p-2 focus:ring-2 focus:ring-[#569471] outline-none transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-slate-400 hover:bg-[#1A1D26] rounded-md p-2 focus:ring-2 focus:ring-[#569471] outline-none transition-colors">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<button class="text-slate-400 hover:bg-[#1A1D26] rounded-md p-2 focus:ring-2 focus:ring-[#569471] outline-none transition-colors">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden ml-2 border border-[#1F222C] cursor-pointer">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Default user avatar placeholder with dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDT_-Yv_lRHwMCwEvDQ-zQhC6UYbpgx-ajvo76WbvD04Qkqw5t4ogW6-UZmmUKLLwmz1EPcQkcD3ww4rXDDZ6o0K6JzaeXdNJeswuz05-UhVC_z1KW7X8Qp1nuMErwyrQGuofYPW4IAHCF1DzrQ_zy5ybWm_tTfwTbKGNJa4ZHGygSpq7mLU26W-iXcpHIL6CFgiBArTCnf36B64Qs5nGFATrcSi9CEPthLFy5RDrSt4fTCWaRFsjz7er4istoA27JoMrYb-n1mS25S"/>
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<div class="p-container-padding flex-1 flex flex-col gap-lg max-w-6xl mx-auto w-full">
+<div class="flex items-end justify-between mb-sm">
+<div>
+<h2 class="font-headline-xl text-on-surface">Time Logging</h2>
+<p class="font-body-md text-on-surface-variant mt-1">Record your shifts and manage allocations.</p>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm bg-surface-container py-1.5 px-3 rounded-DEFAULT border border-outline-variant">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_today">calendar_today</span>
+<span>Current Period: Q3 2023</span>
+</div>
+</div>
+<!-- Summary Row -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<div class="bg-surface-container border border-outline-variant rounded-lg p-md flex flex-col justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm mb-4">
+<span class="material-symbols-outlined text-[18px]" data-icon="schedule">schedule</span>
+                        My Open Period Hours
+                    </div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-on-surface">142.5</span>
+<span class="font-caption text-primary">hrs logged</span>
+</div>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded-lg p-md flex flex-col justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm mb-4">
+<span class="material-symbols-outlined text-[18px]" data-icon="target">target</span>
+                        Period Target
+                    </div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-on-surface">160.0</span>
+<span class="font-caption text-on-surface-variant">hrs goal</span>
+</div>
+<div class="w-full bg-surface-dim h-1.5 rounded-full mt-3 overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 89%;"></div>
+</div>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded-lg p-md flex flex-col justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm mb-4">
+<span class="material-symbols-outlined text-[18px]" data-icon="volunteer_activism">volunteer_activism</span>
+                        Charity Allocation
+                    </div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-on-surface">5.0</span>
+<span class="font-caption text-tertiary">% projected</span>
+</div>
+</div>
+</div>
+<!-- Main Layout Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-lg flex-1">
+<!-- Log My Shift (Takes up 2 columns) -->
+<div class="lg:col-span-2 bg-surface-container border border-outline-variant rounded-lg flex flex-col">
+<div class="px-lg py-md border-b border-outline-variant flex items-center justify-between">
+<h3 class="font-headline-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="more_time">more_time</span>
+                            Log My Shift
+                        </h3>
+</div>
+<div class="p-lg flex-1 flex flex-col gap-md">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="flex flex-col gap-2">
+<label class="font-label-sm text-on-surface-variant">Start Time</label>
+<input class="bg-surface-dim border border-outline-variant rounded-DEFAULT p-2 font-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" type="time"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-sm text-on-surface-variant">End Time</label>
+<input class="bg-surface-dim border border-outline-variant rounded-DEFAULT p-2 font-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" type="time"/>
+</div>
+</div>
+<div class="flex flex-col gap-2 flex-1">
+<label class="font-label-sm text-on-surface-variant">Description / Project Code</label>
+<textarea class="bg-surface-dim border border-outline-variant rounded-DEFAULT p-3 font-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all flex-1 min-h-[120px] resize-none" placeholder="Enter details regarding tasks completed during this shift..."></textarea>
+</div>
+<div class="flex justify-end pt-sm mt-auto border-t border-outline-variant/50">
+<button class="bg-primary hover:bg-primary-container text-on-primary font-label-bold py-2.5 px-6 rounded-DEFAULT transition-colors duration-200 flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-[18px]" data-icon="save">save</span>
+                                Log Time
+                            </button>
+</div>
+</div>
+</div>
+<!-- Side Column Settings -->
+<div class="flex flex-col gap-lg">
+<!-- Voluntary Partner Charity Card -->
+<div class="bg-surface-container border border-outline-variant rounded-lg flex flex-col">
+<div class="px-md py-md border-b border-outline-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary" data-icon="favorite">favorite</span>
+<h3 class="font-headline-md text-on-surface text-[16px]">Voluntary Partner Charity</h3>
+</div>
+<div class="p-md flex flex-col gap-4">
+<p class="font-caption text-on-surface-variant">Adjust the percentage of your partnership distribution allocated to the SahimPact Foundation fund.</p>
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="font-label-sm text-on-surface-variant">Contribution Level</span>
+<span class="font-label-bold text-on-surface bg-surface-dim px-2 py-1 rounded-DEFAULT border border-outline-variant">5.0%</span>
+</div>
+<input class="w-full h-1.5 bg-surface-dim rounded-lg appearance-none cursor-pointer accent-tertiary" max="20" min="0" step="0.5" type="range" value="5"/>
+<div class="flex justify-between text-on-surface-variant font-caption">
+<span>0%</span>
+<span>20% Max</span>
+</div>
+</div>
+<button class="mt-2 bg-surface-dim border border-outline-variant hover:bg-surface-container-high text-on-surface font-label-sm py-2 px-4 rounded-DEFAULT transition-colors duration-200 text-center">
+                                Update Allocation
+                            </button>
+</div>
+</div>
+<!-- Recent Entries Mini List (Contextual filler) -->
+<div class="bg-surface-container border border-outline-variant rounded-lg flex flex-col flex-1">
+<div class="px-md py-3 border-b border-outline-variant flex items-center justify-between">
+<h3 class="font-label-bold text-on-surface">Recent Logs</h3>
+<button class="text-primary hover:text-primary-container font-caption">View All</button>
+</div>
+<div class="flex flex-col gap-1 p-2">
+<div class="p-2 rounded-DEFAULT hover:bg-surface-container-high transition-colors flex justify-between items-center cursor-pointer">
+<div>
+<div class="font-label-sm text-on-surface">Today, 09:00 - 17:30</div>
+<div class="font-caption text-on-surface-variant truncate w-40">Project Alpha Finalization</div>
+</div>
+<div class="font-label-bold text-primary">8.5h</div>
+</div>
+<div class="p-2 rounded-DEFAULT hover:bg-surface-container-high transition-colors flex justify-between items-center cursor-pointer">
+<div>
+<div class="font-label-sm text-on-surface">Yesterday, 08:30 - 18:00</div>
+<div class="font-caption text-on-surface-variant truncate w-40">Client Meetings &amp; Prep</div>
+</div>
+<div class="font-label-bold text-primary">9.5h</div>
+</div>
+<div class="p-2 rounded-DEFAULT hover:bg-surface-container-high transition-colors flex justify-between items-center cursor-pointer">
+<div>
+<div class="font-label-sm text-on-surface">Oct 24, 09:00 - 14:00</div>
+<div class="font-caption text-on-surface-variant truncate w-40">Internal Training</div>
+</div>
+<div class="font-label-bold text-primary">5.0h</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

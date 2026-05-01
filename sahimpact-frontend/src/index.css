@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@theme {
+  /* Premium Dark Theme Palette */
+  --color-bg-base: #0A0F16;
+  --color-bg-surface: #151B26;
+  --color-border-muted: #2A3241;
+  --color-text-main: #F1F5F9;
+  --color-text-muted: #94A3B8;
+  --color-text-danger: #EF4444;
+
+  /* Brand Accents */
+  --color-primary: #2EDEA4; /* Sahim Mint */
+  --color-on-primary: #0A0F16;
+  --color-secondary: #F59E0B; /* Contingency Gold */
+  --color-on-secondary: #0A0F16;
+
+  /* Semantic Overrides */
+  --color-surface: var(--color-bg-surface);
+  --color-background: var(--color-bg-base);
+  --color-on-background: var(--color-text-main);
+  --color-on-surface: var(--color-text-main);
+  --color-on-surface-variant: var(--color-text-muted);
+  --color-outline-variant: var(--color-border-muted);
+  
+  /* Typography */
+  --font-brand: "Plus Jakarta Sans", "Space Grotesk", sans-serif;
+  --font-data: "Inter", "Geist", sans-serif;
+}
+
+:root {
+  --primary-brand: #2EDEA4;
+  --secondary-brand: #F59E0B;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-data antialiased overflow-x-hidden;
+    background-color: #0A0F16;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-brand font-bold;
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-on-primary font-extrabold py-2 px-6 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-95;
+    box-shadow: 0 4px 14px 0 rgba(46, 222, 164, 0.2);
+  }
+  
+  .btn-primary:hover {
+    box-shadow: 0 0 12px rgba(46, 222, 164, 0.4);
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-on-secondary font-extrabold py-2 px-6 rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-95;
+    box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.2);
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-text-muted hover:bg-bg-surface hover:text-text-main py-2 px-4 rounded-xl transition-all flex items-center justify-center gap-2;
+  }
+  
+  .card {
+    @apply bg-bg-surface border border-border-muted rounded-2xl p-6;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  }
+  
+  .input-field {
+    @apply bg-[#070B10] border border-border-muted rounded-xl px-4 py-3 text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 transition-all;
+    color-scheme: dark;
+  }
+
+  select.input-field {
+    background-color: #070B10;
+  }
+  
+  .label-text {
+    @apply block text-xs font-bold text-text-muted uppercase tracking-widest mb-2;
+  }
+
+  /* Better native date/time picker visibility */
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      opacity: 0.8;
+      cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .animate-slide-in {
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0F16;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A3241;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2EDEA4;
+}

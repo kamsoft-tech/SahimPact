@@ -1,29 +1,31 @@
-version: "3.8"
-
 services:
   backend:
     build:
-      context: ./iyipl-backend
+      context: ./sahimpact-backend
       dockerfile: Dockerfile
-    container_name: iyipl_backend
+    container_name: partnersystem_backend
     ports:
       - "9000:8000"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=sqlite:////app/data/iyipl.db
+      - DATABASE_URL=sqlite:////app/data/partnersystem.db
     volumes:
-      - backend_data:/app/data
+      - partnersystem_data:/app/data
     restart: unless-stopped
 
   frontend:
     build:
-      context: ./iyipl-frontend
+      context: ./sahimpact-frontend
       dockerfile: Dockerfile
-    container_name: iyipl_frontend
+    container_name: partnersystem_frontend
     ports:
       - "9090:80"
+    env_file:
+      - .env
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
-  backend_data: {}
+  partnersystem_data: {}
