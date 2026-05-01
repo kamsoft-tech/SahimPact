@@ -19,5 +19,6 @@ dist/
 # SahimPact specific
 *.zip
 *.log
+vite.config.js.timestamp-*
 sahimpact-backend/uploads/*
 !sahimpact-backend/uploads/.gitkeep
