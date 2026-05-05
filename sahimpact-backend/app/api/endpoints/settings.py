@@ -54,17 +54,6 @@ def update_settings(
     # Prepare the proposed settings dict
     proposed_settings = settings_update.model_dump()
     
-    # Fetch all current shares to include in the agreement snapshot
-    current_shares = db.query(PartnerShare).filter(PartnerShare.company_id == company_id).all()
-    proposed_shares = [
-        {
-            "user_id": s.user_id,
-            "capital_share_fixed": s.capital_share_fixed,
-            "labor_share_variable": s.labor_share_variable,
-            "voluntary_charity_percentage": s.voluntary_charity_percentage
-        } for s in current_shares
-    ]
-
     # Check for existing pending agreement
     from app.models.models import Agreement, AgreementSignoff, AgreementStatus, RoleEnum
     from sqlalchemy import or_
@@ -77,7 +66,18 @@ def update_settings(
     if existing_agreement:
         # Update existing
         existing_agreement.proposed_settings = proposed_settings
-        existing_agreement.proposed_shares = proposed_shares
+        # PRESERVE existing proposed_shares if they exist, otherwise use current DB state
+        if not existing_agreement.proposed_shares:
+            current_shares = db.query(PartnerShare).filter(PartnerShare.company_id == company_id).all()
+            existing_agreement.proposed_shares = [
+                {
+                    "user_id": s.user_id,
+                    "capital_share_fixed": s.capital_share_fixed,
+                    "labor_share_variable": s.labor_share_variable,
+                    "voluntary_charity_percentage": s.voluntary_charity_percentage
+                } for s in current_shares
+            ]
+        
         existing_agreement.proposed_by_id = current_user.id
         existing_agreement.created_at = datetime.now(timezone.utc)
         # Reset signoffs
@@ -85,6 +85,17 @@ def update_settings(
         agreement = existing_agreement
     else:
         # Create new
+        # Fetch all current shares to include in the agreement snapshot
+        current_shares = db.query(PartnerShare).filter(PartnerShare.company_id == company_id).all()
+        proposed_shares = [
+            {
+                "user_id": s.user_id,
+                "capital_share_fixed": s.capital_share_fixed,
+                "labor_share_variable": s.labor_share_variable,
+                "voluntary_charity_percentage": s.voluntary_charity_percentage
+            } for s in current_shares
+        ]
+
         agreement = Agreement(
             company_id=company_id,
             proposed_by_id=current_user.id,

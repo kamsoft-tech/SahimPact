@@ -129,7 +129,7 @@ const ThePulse = () => {
                         </div>
                         <p className="text-text-muted text-sm mt-1">
                             {role === 'SUPER_ADMIN' ? 'Global System Monitoring & Governance' : 'Real-time financial performance and equity projections.'}
-                            {company_id && <span className="ml-2 text-[10px] font-black opacity-50 uppercase tracking-tighter">Tenant ID: {company_id}</span>}
+                            {company_name && <span className="ml-2 text-[10px] font-black text-primary uppercase tracking-[0.1em] border-l border-border-muted/30 pl-2">{company_name}</span>}
                         </p>
                     </div>
                 </div>

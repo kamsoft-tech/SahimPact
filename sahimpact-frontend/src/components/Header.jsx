@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { useNotification } from '../context/NotificationContext';
+import { useBranding } from '../context/BrandingContext';
 import { 
     Bell, 
     Menu, 
     FileText, 
     ArrowRight, 
     CheckCircle2, 
-    X, 
-    ChevronDown,
-    CircleDashed
+    CircleDashed,
+    Building2
 } from "lucide-react";
 import { 
     Popover, 
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 const Header = ({ title, onMenuToggle }) => {
     const { user } = useAuth();
+    const { company_name } = useBranding();
     const { showNotification } = useNotification();
     const [pendingCount, setPendingCount] = useState(0);
     const [pendingTxs, setPendingTxs] = useState([]);
@@ -86,8 +87,8 @@ const Header = ({ title, onMenuToggle }) => {
                 <div className="flex flex-col">
                     <h2 className="text-sm font-black text-text-main font-brand uppercase tracking-widest truncate">{title}</h2>
                     <div className="flex items-center gap-2 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                        <span className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em]">Operational Nexus</span>
+                        <Building2 className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">{company_name}</span>
                     </div>
                 </div>
             </div>

@@ -18,8 +18,17 @@ import {
     History,
     Fingerprint,
     Info,
-    Loader2
+    Loader2,
+    Banknote,
+    Palette,
+    Settings2,
+    Building2,
+    Users
 } from "lucide-react";
+
+import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
+import { useLocation } from 'react-router-dom';
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
@@ -59,8 +68,29 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+const settingsSchema = z.object({
+    primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+    secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+    logo_url: z.string().url().or(z.string().length(0)),
+    favicon_url: z.string().url().or(z.string().length(0)),
+    currency_symbol: z.string().min(1, "Required"),
+    charity_percentage: z.number().min(0).max(1),
+    partnership_mode: z.string(),
+    labour_share_mode: z.string(),
+    capital_pool_percentage: z.number().min(0).max(1),
+    labour_pool_percentage: z.number().min(0).max(1),
+    contingency_pot_minimum: z.number().min(0),
+    company_name: z.string().optional(),
+});
 
 const addPartnerSchema = z.object({
     username: z.string().min(3, "Username must be at least 3 characters").regex(/^[a-zA-Z0-9_]+$/, "Alphanumeric and underscores only"),
@@ -82,12 +112,31 @@ const resetPasswordSchema = z.object({
 
 const Partnerships = () => {
     const { showNotification } = useNotification();
+    const { role } = useAuth();
+    const { refreshBranding } = useBranding();
+    const location = useLocation();
+    
     const [users, setUsers] = useState([]);
     const [shares, setShares] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [pendingAgreement, setPendingAgreement] = useState(null);
     const [agreementHistory, setAgreementHistory] = useState([]);
+    const [settings, setSettings] = useState({
+        primary_color: '#94d4ad',
+        secondary_color: '#bfc1ff',
+        logo_url: '',
+        favicon_url: '',
+        currency_symbol: '£',
+        charity_percentage: 0.06,
+        partnership_mode: 'both',
+        labour_share_mode: 'time',
+        capital_pool_percentage: 0.5,
+        labour_pool_percentage: 0.5,
+        contingency_pot_minimum: 10000,
+        company_name: ''
+    });
     
+    const [activeTab, setActiveTab] = useState("partners");
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showResetModal, setShowResetModal] = useState(false);
@@ -113,6 +162,11 @@ const Partnerships = () => {
         defaultValues: { new_password: "" },
     });
 
+    const settingsForm = useForm({
+        resolver: zodResolver(settingsSchema),
+        defaultValues: settings
+    });
+
     useEffect(() => {
         fetchData();
         const urlParams = new URLSearchParams(window.location.search);
@@ -126,18 +180,35 @@ const Partnerships = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [usersRes, sharesRes, pendingAgRes, historyRes] = await Promise.all([
+            const [usersRes, sharesRes, pendingAgRes, historyRes, settingsRes] = await Promise.all([
                 axios.get('/api/admin/users'),
                 axios.get('/api/admin/shares'),
                 axios.get('/api/agreements/pending'),
-                axios.get('/api/agreements/history')
+                axios.get('/api/agreements/history'),
+                axios.get('/api/settings')
             ]);
             setUsers(usersRes.data);
             setShares(sharesRes.data);
             setPendingAgreement(pendingAgRes.data);
             setAgreementHistory(historyRes.data);
+            setSettings(settingsRes.data);
+            settingsForm.reset(settingsRes.data);
         } catch (error) {
             console.error("Failed to fetch data", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const onSettingsSubmit = async (values) => {
+        setIsLoading(true);
+        try {
+            await axios.put('/api/settings', values);
+            showNotification("Governance changes proposed! All partners must sign to apply.", "success");
+            fetchData();
+            refreshBranding();
+        } catch (error) {
+            showNotification("Failed to update settings", "error");
         } finally {
             setIsLoading(false);
         }
@@ -206,97 +277,121 @@ const Partnerships = () => {
     };
 
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border-muted/30 pb-8">
                 <div>
                     <h1 className="text-4xl font-black text-text-main font-brand uppercase tracking-tighter">Partnerships</h1>
                     <p className="text-text-muted mt-2 font-medium">Manage company partners, equity distribution, and digital governance.</p>
                 </div>
-                <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-                    <DialogTrigger asChild>
-                        <Button className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl h-12 px-6">
-                            <UserPlus className="w-5 h-5 mr-2" />
-                            Add Partner
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-bg-surface border-border-muted max-w-md">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl font-black text-text-main font-brand uppercase tracking-tighter">Add New Partner</DialogTitle>
-                            <DialogDescription className="text-text-muted">Create a new system account and assign starting roles.</DialogDescription>
-                        </DialogHeader>
-                        <Form {...addForm}>
-                            <form onSubmit={addForm.handleSubmit(handleAddPartner)} className="space-y-4 py-4">
-                                <FormField
-                                    control={addForm.control}
-                                    name="username"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Username</FormLabel>
-                                            <FormControl>
-                                                <Input {...field} className="bg-bg-base border-border-muted font-bold h-11" placeholder="e.g. john_doe" />
-                                            </FormControl>
-                                            <FormMessage className="text-[10px] font-bold" />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={addForm.control}
-                                    name="full_name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Full Name</FormLabel>
-                                            <FormControl>
-                                                <Input {...field} className="bg-bg-base border-border-muted font-bold h-11" placeholder="Display Name" />
-                                            </FormControl>
-                                            <FormMessage className="text-[10px] font-bold" />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={addForm.control}
-                                    name="password"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Initial Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" {...field} className="bg-bg-base border-border-muted font-bold h-11" placeholder="Min 8 characters" />
-                                            </FormControl>
-                                            <FormMessage className="text-[10px] font-bold" />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={addForm.control}
-                                    name="role"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">System Role</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="bg-bg-base border-border-muted font-bold h-11">
-                                                        <SelectValue placeholder="Select a role" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent className="bg-bg-surface border-border-muted">
-                                                    <SelectItem value="PARTNER">Partner</SelectItem>
-                                                    <SelectItem value="COMPANY_ADMIN">Company Admin</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage className="text-[10px] font-bold" />
-                                        </FormItem>
-                                    )}
-                                />
-                                <DialogFooter className="pt-4">
-                                    <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} className="font-black rounded-xl">Cancel</Button>
-                                    <Button type="submit" className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl flex-1 h-11">Add Partner</Button>
-                                </DialogFooter>
-                            </form>
-                        </Form>
-                    </DialogContent>
-                </Dialog>
+                <div className="flex items-center gap-3">
+                    {activeTab === 'partners' && (
+                        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl h-12 px-6">
+                                    <UserPlus className="w-5 h-5 mr-2" />
+                                    Add Partner
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-bg-surface border-border-muted max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle className="text-2xl font-black text-text-main font-brand uppercase tracking-tighter">Add New Partner</DialogTitle>
+                                    <DialogDescription className="text-text-muted">Create a new system account and assign starting roles.</DialogDescription>
+                                </DialogHeader>
+                                <Form {...addForm}>
+                                    <form onSubmit={addForm.handleSubmit(handleAddPartner)} className="space-y-4 py-4">
+                                        <FormField
+                                            control={addForm.control}
+                                            name="username"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Username</FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} className="bg-bg-base border-border-muted font-bold h-11" placeholder="e.g. john_doe" />
+                                                    </FormControl>
+                                                    <FormMessage className="text-[10px] font-bold" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={addForm.control}
+                                            name="full_name"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Full Name</FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} className="bg-bg-base border-border-muted font-bold h-11" placeholder="Display Name" />
+                                                    </FormControl>
+                                                    <FormMessage className="text-[10px] font-bold" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={addForm.control}
+                                            name="password"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Initial Password</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="password" {...field} className="bg-bg-base border-border-muted font-bold h-11" placeholder="Min 8 characters" />
+                                                    </FormControl>
+                                                    <FormMessage className="text-[10px] font-bold" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={addForm.control}
+                                            name="role"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">System Role</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger className="bg-bg-base border-border-muted font-bold h-11">
+                                                                <SelectValue placeholder="Select a role" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent className="bg-bg-surface border-border-muted">
+                                                            <SelectItem value="PARTNER">Partner</SelectItem>
+                                                            <SelectItem value="COMPANY_ADMIN">Company Admin</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage className="text-[10px] font-bold" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <DialogFooter className="pt-4">
+                                            <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} className="font-black rounded-xl">Cancel</Button>
+                                            <Button type="submit" className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl flex-1 h-11">Add Partner</Button>
+                                        </DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
+                    )}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+                <TabsList className="bg-bg-surface border border-border-muted/30 p-1 rounded-2xl h-14 w-full sm:w-auto grid grid-cols-3 sm:flex">
+                    <TabsTrigger value="partners" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-on-primary h-full px-6">
+                        <Users className="w-4 h-4 mr-2 hidden sm:block" />
+                        Partners
+                    </TabsTrigger>
+                    <TabsTrigger value="governance" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-on-primary h-full px-6">
+                        <Settings2 className="w-4 h-4 mr-2 hidden sm:block" />
+                        Governance
+                    </TabsTrigger>
+                    <TabsTrigger value="agreements" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-on-primary h-full px-6 relative">
+                        <FileSignature className="w-4 h-4 mr-2 hidden sm:block" />
+                        Agreements
+                        {pendingAgreement && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-secondary rounded-full border-2 border-bg-surface animate-pulse"></span>
+                        )}
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="partners" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {users.map((user) => {
                     const userShare = shares.find(s => s.user_id === user.id);
                     return (
@@ -491,9 +586,223 @@ const Partnerships = () => {
                     </Form>
                 </DialogContent>
             </Dialog>
+                </TabsContent>
 
-            {/* Partnership Agreement & Sign-off Section */}
-            <div id="agreement-section" className="mt-16 border-t border-border-muted/30 pt-16">
+                <TabsContent value="governance" className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <Card className="bg-bg-surface border-border-muted/50 shadow-sm overflow-hidden">
+                            <CardHeader className="bg-bg-base/30 border-b border-border-muted/10">
+                                <CardTitle className="flex items-center gap-3 text-xl font-black text-text-main font-brand uppercase tracking-tighter">
+                                    <div className="p-2 bg-secondary/10 rounded-lg text-secondary">
+                                        <Banknote className="h-5 w-5" />
+                                    </div>
+                                    Economic Constants
+                                </CardTitle>
+                                <CardDescription className="text-text-muted font-medium">Core algorithms governing wealth distribution.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                                <Form {...settingsForm}>
+                                    <form className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="currency_symbol"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Currency Symbol</FormLabel>
+                                                    <FormControl>
+                                                        <Input className="font-black text-center text-xl bg-bg-base border-border-muted h-12" {...field} disabled={role === 'PARTNER'} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="charity_percentage"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Global Charity %</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                className="pr-8 font-black bg-bg-base border-border-muted h-12" 
+                                                                value={Math.round(field.value * 10000) / 100}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
+                                                                disabled={role === 'PARTNER'} 
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted font-black">%</span>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="capital_pool_percentage"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Capital Pool %</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                className="pr-8 font-black bg-bg-base border-border-muted h-12" 
+                                                                value={Math.round(field.value * 10000) / 100}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
+                                                                disabled={role === 'PARTNER'} 
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted font-black">%</span>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="labour_pool_percentage"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Labour Pool %</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                className="pr-8 font-black bg-bg-base border-border-muted h-12" 
+                                                                value={Math.round(field.value * 10000) / 100}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
+                                                                disabled={role === 'PARTNER'} 
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted font-black">%</span>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="partnership_mode"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Partnership Mode</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={role === 'PARTNER'}>
+                                                        <FormControl>
+                                                            <SelectTrigger className="bg-bg-base border-border-muted font-black h-12">
+                                                                <SelectValue placeholder="Select mode" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent className="bg-bg-surface border-border-muted">
+                                                            <SelectItem value="both">Both (Capital & Labour)</SelectItem>
+                                                            <SelectItem value="capital_only">Capital Only</SelectItem>
+                                                            <SelectItem value="labour_only">Labour Only</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="labour_share_mode"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Labour Share Mode</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={role === 'PARTNER'}>
+                                                        <FormControl>
+                                                            <SelectTrigger className="bg-bg-base border-border-muted font-black h-12">
+                                                                <SelectValue placeholder="Select mode" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent className="bg-bg-surface border-border-muted">
+                                                            <SelectItem value="time">Time Logged (Dynamic)</SelectItem>
+                                                            <SelectItem value="fixed">Fixed Percentage</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="contingency_pot_minimum"
+                                            render={({ field }) => (
+                                                <FormItem className="col-span-full">
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Contingency Pot Minimum</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted font-black">
+                                                                {settingsForm.watch('currency_symbol')}
+                                                            </span>
+                                                            <Input type="number" className="pl-8 font-black bg-bg-base border-border-muted h-12" {...field} disabled={role === 'PARTNER'} />
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormDescription className="text-[10px] font-bold text-text-muted mt-1">
+                                                        Recommended reserve for unforeseen liabilities.
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </form>
+                                </Form>
+                            </CardContent>
+                            {role !== 'PARTNER' && (
+                                <CardFooter className="bg-bg-base/20 border-t border-border-muted/10 p-6">
+                                    <Button 
+                                        className="w-full bg-primary hover:bg-primary/90 text-on-primary font-black uppercase tracking-widest h-12 rounded-xl shadow-lg shadow-primary/10" 
+                                        onClick={settingsForm.handleSubmit(onSettingsSubmit)}
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Settings2 className="mr-2 h-5 w-5" />}
+                                        Propose Governance Change
+                                    </Button>
+                                </CardFooter>
+                            )}
+                        </Card>
+
+                        <div className="space-y-6">
+                            <Card className="bg-bg-surface border-border-muted/50 shadow-sm overflow-hidden">
+                                <CardHeader className="bg-bg-base/30 border-b border-border-muted/10">
+                                    <CardTitle className="flex items-center gap-3 text-xl font-black text-text-main font-brand uppercase tracking-tighter">
+                                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                            <Info className="h-5 w-5" />
+                                        </div>
+                                        Governance logic
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="pt-6 space-y-4">
+                                    <p className="text-sm text-text-muted font-medium leading-relaxed">
+                                        The Economic Constants define how the system calculates profit distribution across the entire partnership. 
+                                        Changes here require a multi-signature agreement from all active partners.
+                                    </p>
+                                    <ul className="space-y-3 text-xs font-bold text-text-main">
+                                        <li className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                                            Charity % is deducted from gross profit first.
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                                            Remaining profit is split between Capital and Labour pools.
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                                            Contingency Pot must be filled before distributions occur.
+                                        </li>
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="agreements" className="space-y-8">
+                    <div id="agreement-section" className="pt-8">
                 <div className="flex items-center gap-4 mb-8">
                     <div className="p-3 bg-primary/10 rounded-2xl">
                         <FileSignature className="w-8 h-8 text-primary" />
@@ -753,7 +1062,11 @@ const Partnerships = () => {
                         )}
                     </CardContent>
                 </Card>
-            </div>
+
+                </div>
+                </TabsContent>
+            </Tabs>
+
             <ConfirmDialog
                 isOpen={agreementConfirm.isOpen}
                 onOpenChange={(open) => setAgreementConfirm(prev => ({ ...prev, isOpen: open }))}

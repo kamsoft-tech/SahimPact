@@ -80,13 +80,6 @@ const settingsSchema = z.object({
     secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
     logo_url: z.string().url().or(z.string().length(0)),
     favicon_url: z.string().url().or(z.string().length(0)),
-    currency_symbol: z.string().min(1, "Required"),
-    charity_percentage: z.number().min(0).max(1),
-    partnership_mode: z.string(),
-    labour_share_mode: z.string(),
-    capital_pool_percentage: z.number().min(0).max(1),
-    labour_pool_percentage: z.number().min(0).max(1),
-    contingency_pot_minimum: z.number().min(0),
     company_name: z.string().optional(),
 });
 
@@ -136,13 +129,6 @@ const SystemConfig = () => {
         secondary_color: '#bfc1ff',
         logo_url: '',
         favicon_url: '',
-        currency_symbol: '£',
-        charity_percentage: 0.06,
-        partnership_mode: 'both',
-        labour_share_mode: 'time',
-        capital_pool_percentage: 0.5,
-        labour_pool_percentage: 0.5,
-        contingency_pot_minimum: 10000,
         company_name: ''
     });
 
@@ -447,11 +433,11 @@ const SystemConfig = () => {
             {pendingAgreement && activeTab === 'global' && (
                 <Alert className="bg-primary/5 border-primary/20">
                     <History className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-primary font-bold">Pending Partnership Agreement</AlertTitle>
+                    <AlertTitle className="text-primary font-bold">Pending Governance Change</AlertTitle>
                     <AlertDescription className="flex items-center justify-between">
-                        <span>There is an active proposal for financial parameters. New changes will overwrite the current proposal.</span>
+                        <span>A proposal for partnership governance is currently pending approval.</span>
                         <Button variant="outline" size="sm" asChild>
-                            <a href="/partnerships?agreement=true">Review Agreement</a>
+                            <a href="/partnerships?tab=agreements">Review Agreement</a>
                         </Button>
                     </AlertDescription>
                 </Alert>
@@ -461,7 +447,7 @@ const SystemConfig = () => {
                 {role === 'SUPER_ADMIN' && (
                     <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-10 h-auto bg-bg-surface border border-border-muted/30 p-1 rounded-2xl shadow-sm">
                         <TabsTrigger value="global" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
-                            <Settings2 className="h-3.5 w-3.5" /> Global Settings
+                            <Palette className="h-3.5 w-3.5" /> Branding & Identity
                         </TabsTrigger>
                         <TabsTrigger value="companies" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
                             <Building2 className="h-3.5 w-3.5" /> Enterprise Registry
@@ -482,7 +468,6 @@ const SystemConfig = () => {
 
                 <TabsContent value="global" className="space-y-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Brand & Appearance */}
                         <Card className="bg-bg-surface border-border-muted/50 shadow-sm overflow-hidden">
                             <CardHeader className="bg-bg-base/30 border-b border-border-muted/10">
                                 <CardTitle className="flex items-center gap-3 text-xl font-black text-text-main font-brand uppercase tracking-tighter">
@@ -504,8 +489,11 @@ const SystemConfig = () => {
                                                     <FormItem>
                                                         <FormLabel>Company Name</FormLabel>
                                                         <FormControl>
-                                                            <Input {...field} />
+                                                            <Input {...field} placeholder="Enter your enterprise name" />
                                                         </FormControl>
+                                                        <FormDescription>
+                                                            This identifies your organization across the protocol.
+                                                        </FormDescription>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}
@@ -549,225 +537,6 @@ const SystemConfig = () => {
                                                 )}
                                             />
                                         </div>
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="logo_url"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Logo URL</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="https://example.com/logo.png" {...field} disabled={role === 'PARTNER'} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="favicon_url"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <div className="flex justify-between items-center">
-                                                        <FormLabel>Favicon URL</FormLabel>
-                                                        <Button 
-                                                            type="button"
-                                                            variant="link" 
-                                                            size="sm" 
-                                                            className="h-auto p-0 text-[10px] uppercase font-bold"
-                                                            onClick={() => settingsForm.setValue('favicon_url', settingsForm.getValues('logo_url'))}
-                                                            disabled={!settingsForm.watch('logo_url') || role === 'PARTNER'}
-                                                        >
-                                                            Use Logo as Favicon
-                                                        </Button>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Input placeholder="https://example.com/favicon.ico" {...field} disabled={role === 'PARTNER'} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </form>
-                                </Form>
-                            </CardContent>
-                            <CardFooter className="bg-muted/50 rounded-b-lg border-t p-4 flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-lg bg-background flex items-center justify-center border overflow-hidden">
-                                    {settingsForm.watch('logo_url') ? (
-                                        <img src={settingsForm.watch('logo_url')} alt="Logo" className="w-full h-full object-contain p-1" />
-                                    ) : (
-                                        <Palette className="h-8 w-8 text-muted-foreground" />
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold">Brand Preview</p>
-                                    <div className="flex gap-2 mt-1">
-                                        <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: settingsForm.watch('primary_color') }}></div>
-                                        <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: settingsForm.watch('secondary_color') }}></div>
-                                    </div>
-                                </div>
-                            </CardFooter>
-                        </Card>
-
-                        {/* Financial Parameters */}
-                        <Card className="bg-bg-surface border-border-muted/50 shadow-sm overflow-hidden">
-                            <CardHeader className="bg-bg-base/30 border-b border-border-muted/10">
-                                <CardTitle className="flex items-center gap-3 text-xl font-black text-text-main font-brand uppercase tracking-tighter">
-                                    <div className="p-2 bg-secondary/10 rounded-lg text-secondary">
-                                        <Banknote className="h-5 w-5" />
-                                    </div>
-                                    Economic Constants
-                                </CardTitle>
-                                <CardDescription className="text-text-muted font-medium">Core algorithms governing wealth distribution.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Form {...settingsForm}>
-                                    <form className="grid grid-cols-2 gap-4">
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="currency_symbol"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Currency Symbol</FormLabel>
-                                                    <FormControl>
-                                                        <Input className="font-bold text-center text-xl" {...field} disabled={role === 'PARTNER'} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="charity_percentage"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Global Charity %</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <Input 
-                                                                type="number" 
-                                                                step="0.01" 
-                                                                className="pr-8" 
-                                                                value={Math.round(field.value * 10000) / 100}
-                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                disabled={role === 'PARTNER'} 
-                                                            />
-                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="capital_pool_percentage"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Capital Pool %</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <Input 
-                                                                type="number" 
-                                                                step="0.01" 
-                                                                className="pr-8" 
-                                                                value={Math.round(field.value * 10000) / 100}
-                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                disabled={role === 'PARTNER'} 
-                                                            />
-                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="labour_pool_percentage"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Labour Pool %</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <Input 
-                                                                type="number" 
-                                                                step="0.01" 
-                                                                className="pr-8" 
-                                                                value={Math.round(field.value * 10000) / 100}
-                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                disabled={role === 'PARTNER'} 
-                                                            />
-                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="partnership_mode"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Partnership Mode</FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value} disabled={role === 'PARTNER'}>
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select mode" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="both">Both (Capital & Labour)</SelectItem>
-                                                            <SelectItem value="capital_only">Capital Only</SelectItem>
-                                                            <SelectItem value="labour_only">Labour Only</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="labour_share_mode"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Labour Share Mode</FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value} disabled={role === 'PARTNER'}>
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select mode" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="time">Time Logged (Dynamic)</SelectItem>
-                                                            <SelectItem value="fixed">Fixed Percentage</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={settingsForm.control}
-                                            name="contingency_pot_minimum"
-                                            render={({ field }) => (
-                                                <FormItem className="col-span-2">
-                                                    <FormLabel>Contingency Pot Minimum</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">
-                                                                {settingsForm.watch('currency_symbol')}
-                                                            </span>
-                                                            <Input type="number" className="pl-8" {...field} disabled={role === 'PARTNER'} />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormDescription>
-                                                        Current: {new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(field.value).replace('£', settingsForm.watch('currency_symbol'))}
-                                                    </FormDescription>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
                                     </form>
                                 </Form>
                             </CardContent>
@@ -782,8 +551,8 @@ const SystemConfig = () => {
                                 onClick={settingsForm.handleSubmit(onSettingsSubmit)}
                                 disabled={isLoading}
                             >
-                                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <History className="mr-2 h-5 w-5" />}
-                                {isLoading ? 'Staging...' : 'Propose Governance Change'}
+                                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <RefreshCw className="mr-2 h-5 w-5" />}
+                                {isLoading ? 'Updating...' : 'Save Branding Changes'}
                             </Button>
                         </div>
                     )}
@@ -801,7 +570,6 @@ const SystemConfig = () => {
                     </div>
 
                     <Card className="bg-bg-surface border-border-muted/50 overflow-hidden shadow-sm">
-                        {/* Desktop View */}
                         <div className="hidden md:block overflow-x-auto">
                             <Table>
                                 <TableHeader className="bg-bg-base/50">
@@ -884,7 +652,6 @@ const SystemConfig = () => {
                             </Table>
                         </div>
 
-                        {/* Mobile View */}
                         <div className="md:hidden divide-y divide-border-muted/10">
                             {companies.map((company) => (
                                 <div key={company.id} className="p-4 space-y-4">
@@ -1125,107 +892,110 @@ const SystemConfig = () => {
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-secondary">Existing Users</h3>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={() => setManageUsersModal(prev => ({ ...prev, showOrphanList: !prev.showOrphanList }))}
-                                >
-                                    {manageUsersModal.showOrphanList ? 'Close Orphan List' : 'Add Existing Partner'}
+                                <Button variant="outline" size="sm" onClick={() => setManageUsersModal(prev => ({ ...prev, showOrphanList: !prev.showOrphanList }))}>
+                                    {manageUsersModal.showOrphanList ? "Show Member List" : "Add Existing Partner"}
                                 </Button>
                             </div>
 
-                            {manageUsersModal.showOrphanList && (
-                                <Card className="bg-muted/50 p-4 border-dashed animate-in slide-in-from-top-2">
-                                    <h4 className="text-xs font-bold mb-3">Available Orphaned Partners</h4>
-                                    <div className="flex flex-wrap gap-2">
+                            {manageUsersModal.showOrphanList ? (
+                                <div className="space-y-4 border-2 border-dashed border-primary/20 p-4 rounded-2xl bg-primary/5">
+                                    <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                        <UserPlus className="h-4 w-4" /> Available Partners
+                                    </h4>
+                                    <div className="grid grid-cols-1 gap-2">
                                         {orphanedPartners.map(orphan => (
-                                            <Button 
-                                                key={orphan.id}
-                                                variant="secondary"
-                                                size="sm"
-                                                onClick={() => handleAdoptPartner(orphan.id, manageUsersModal.companyId)}
-                                                className="text-xs"
-                                            >
-                                                <Plus className="mr-1 h-3 w-3" /> {orphan.username}
-                                            </Button>
-                                        ))}
-                                        {orphanedPartners.length === 0 && <p className="text-xs text-muted-foreground">No unassigned partners available.</p>}
-                                    </div>
-                                </Card>
-                            )}
-
-                            <div className="border rounded-xl overflow-hidden">
-                                {/* Desktop User Table */}
-                                <div className="hidden sm:block">
-                                    <Table>
-                                        <TableHeader className="bg-bg-base/50">
-                                            <TableRow>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-text-muted">Username</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-text-muted">Role</TableHead>
-                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest text-text-muted">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {manageUsersModal.users.map(u => (
-                                                <TableRow key={u.id} className="border-border-muted/10">
-                                                    <TableCell className="font-bold text-sm text-text-main">{u.username}</TableCell>
-                                                    <TableCell>
-                                                        <Select defaultValue={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
-                                                            <SelectTrigger className="h-9 w-[150px] rounded-xl font-bold text-xs bg-bg-base">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="PARTNER" className="font-bold text-xs">Partner</SelectItem>
-                                                                <SelectItem value="COMPANY_ADMIN" className="font-bold text-xs">Company Admin</SelectItem>
-                                                                <SelectItem value="SUPER_ADMIN" className="font-bold text-xs text-primary">Super Admin</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            className="w-9 h-9 rounded-xl text-destructive hover:bg-destructive/10"
-                                                            onClick={() => handleDeactivateUser(u.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-
-                                {/* Mobile User List */}
-                                <div className="sm:hidden divide-y divide-border-muted/10">
-                                    {manageUsersModal.users.map(u => (
-                                        <div key={u.id} className="p-4 space-y-4">
-                                            <div className="flex justify-between items-center">
-                                                <span className="font-black text-text-main">{u.username}</span>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="w-8 h-8 rounded-lg text-destructive"
-                                                    onClick={() => handleDeactivateUser(u.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
+                                            <div key={orphan.id} className="flex items-center justify-between p-3 bg-bg-surface rounded-xl border border-border-muted/20">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                                                        {orphan.username.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold">@{orphan.username}</p>
+                                                        <p className="text-[10px] text-text-muted">{orphan.full_name}</p>
+                                                    </div>
+                                                </div>
+                                                <Button size="sm" onClick={() => handleAdoptPartner(orphan.id, manageUsersModal.companyId)} className="h-8 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                                                    Adopt
                                                 </Button>
                                             </div>
-                                            <Select defaultValue={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
-                                                <SelectTrigger className="h-10 w-full rounded-xl font-bold text-xs bg-bg-base">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="PARTNER" className="font-bold text-xs">Partner</SelectItem>
-                                                    <SelectItem value="COMPANY_ADMIN" className="font-bold text-xs">Company Admin</SelectItem>
-                                                    <SelectItem value="SUPER_ADMIN" className="font-bold text-xs text-primary">Super Admin</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    ))}
+                                        ))}
+                                        {orphanedPartners.length === 0 && (
+                                            <p className="text-center py-4 text-xs font-medium text-text-muted italic">No orphaned partners detected.</p>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="border border-border-muted/10 rounded-2xl overflow-hidden bg-bg-base/30">
+                                    <div className="hidden sm:block">
+                                        <Table>
+                                            <TableHeader className="bg-bg-base/50">
+                                                <TableRow className="hover:bg-transparent border-border-muted/10">
+                                                    <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-text-muted">Username</TableHead>
+                                                    <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-text-muted">Role</TableHead>
+                                                    <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-text-muted text-right">Actions</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {manageUsersModal.users.map(u => (
+                                                    <TableRow key={u.id} className="border-border-muted/10">
+                                                        <TableCell className="font-bold text-sm text-text-main">{u.username}</TableCell>
+                                                        <TableCell>
+                                                            <Select defaultValue={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
+                                                                <SelectTrigger className="h-9 w-[150px] rounded-xl font-bold text-xs bg-bg-base">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="PARTNER" className="font-bold text-xs">Partner</SelectItem>
+                                                                    <SelectItem value="COMPANY_ADMIN" className="font-bold text-xs">Company Admin</SelectItem>
+                                                                    <SelectItem value="SUPER_ADMIN" className="font-bold text-xs text-primary">Super Admin</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="w-9 h-9 rounded-xl text-destructive hover:bg-destructive/10"
+                                                                onClick={() => handleDeactivateUser(u.id, u.username)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+
+                                    <div className="sm:hidden divide-y divide-border-muted/10">
+                                        {manageUsersModal.users.map(u => (
+                                            <div key={u.id} className="p-4 space-y-4">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-black text-text-main">{u.username}</span>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="w-8 h-8 rounded-lg text-destructive"
+                                                        onClick={() => handleDeactivateUser(u.id, u.username)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                                <Select defaultValue={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
+                                                    <SelectTrigger className="h-10 w-full rounded-xl font-bold text-xs bg-bg-base">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="PARTNER" className="font-bold text-xs">Partner</SelectItem>
+                                                        <SelectItem value="COMPANY_ADMIN" className="font-bold text-xs">Company Admin</SelectItem>
+                                                        <SelectItem value="SUPER_ADMIN" className="font-bold text-xs text-primary">Super Admin</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-4 pt-6 border-t">
@@ -1236,10 +1006,10 @@ const SystemConfig = () => {
                                         control={newUserForm.control}
                                         name="username"
                                         render={({ field }) => (
-                                            <FormItem>
+                                            <FormItem className="col-span-2 sm:col-span-1">
                                                 <FormLabel>Username</FormLabel>
                                                 <FormControl>
-                                                    <Input {...field} />
+                                                    <Input placeholder="Username" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -1249,21 +1019,18 @@ const SystemConfig = () => {
                                         control={newUserForm.control}
                                         name="password"
                                         render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Initial Password</FormLabel>
+                                            <FormItem className="col-span-2 sm:col-span-1">
+                                                <FormLabel>Password</FormLabel>
                                                 <FormControl>
-                                                    <Input type="password" {...field} />
+                                                    <Input type="password" placeholder="Password" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                    <div className="col-span-2 flex justify-end">
-                                        <Button type="submit" disabled={isLoading}>
-                                            {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                                            Create Admin Account
-                                        </Button>
-                                    </div>
+                                    <Button type="submit" className="col-span-2 h-12 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/10" disabled={isLoading}>
+                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Account'}
+                                    </Button>
                                 </form>
                             </Form>
                         </div>

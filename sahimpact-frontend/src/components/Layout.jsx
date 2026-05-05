@@ -45,7 +45,7 @@ const Layout = () => {
                     onMenuToggle={() => setSidebarOpen(!isSidebarOpen)}
                 />
                 
-                <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+                <main className="flex-1 p-4 md:p-8">
                     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <Outlet />
                     </div>

@@ -114,15 +114,16 @@ const TimeLog = () => {
         const subscription = form.watch((value, { name }) => {
             if (name === 'start_time' && value.start_time) {
                 const currentEnd = form.getValues('end_time');
-                // If end_time is empty or before start_time, or same date sync is requested
-                if (!currentEnd || currentEnd < value.start_time) {
+                const startDate = value.start_time.split('T')[0];
+                
+                if (!currentEnd) {
+                    // If no end time, set it to the same as start time
                     form.setValue('end_time', value.start_time);
                 } else {
-                    // Just sync the date part if it's different (optional, but requested)
-                    const startDate = value.start_time.split('T')[0];
                     const endDate = currentEnd.split('T')[0];
+                    const endTime = currentEnd.split('T')[1];
+                    // Always sync the date part if it's different, preserving the time
                     if (startDate !== endDate) {
-                        const endTime = currentEnd.split('T')[1];
                         form.setValue('end_time', `${startDate}T${endTime}`);
                     }
                 }
@@ -515,8 +516,9 @@ const TimeLog = () => {
                                                         type="datetime-local"
                                                         max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
                                                         {...field}
+                                                        onFocus={(e) => e.target.showPicker?.()}
                                                         onClick={(e) => e.target.showPicker?.()}
-                                                        className="bg-bg-base border-border-muted font-bold h-11 pr-10"
+                                                        className="bg-bg-base border-border-muted font-bold h-11 pr-10 text-sm"
                                                     />
                                                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary pointer-events-none" />
                                                 </div>
@@ -537,8 +539,9 @@ const TimeLog = () => {
                                                         type="datetime-local"
                                                         max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
                                                         {...field}
+                                                        onFocus={(e) => e.target.showPicker?.()}
                                                         onClick={(e) => e.target.showPicker?.()}
-                                                        className="bg-bg-base border-border-muted font-bold h-11 pr-10"
+                                                        className="bg-bg-base border-border-muted font-bold h-11 pr-10 text-sm"
                                                     />
                                                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary pointer-events-none" />
                                                 </div>

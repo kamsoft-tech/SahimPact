@@ -116,22 +116,6 @@ def update_partner_share(
         if current_user.role != RoleEnum.SUPER_ADMIN and target_user.company_id != company_id:
              raise HTTPException(status_code=403, detail="User does not belong to your company")
 
-        # 2. Prepare Settings Snapshot
-        settings = db.query(GlobalSettings).filter(GlobalSettings.company_id == company_id).first()
-        proposed_settings = {
-            "charity_percentage": settings.charity_percentage if settings else 0.06,
-            "partnership_mode": settings.partnership_mode if settings else "both",
-            "labour_share_mode": settings.labour_share_mode if settings else "time",
-            "currency_symbol": settings.currency_symbol if settings else "£",
-            "capital_pool_percentage": settings.capital_pool_percentage if settings else 0.50,
-            "labour_pool_percentage": settings.labour_pool_percentage if settings else 0.50,
-            "contingency_pot_minimum": settings.contingency_pot_minimum if settings else 10000.0,
-            "logo_url": settings.logo_url if settings else None,
-            "favicon_url": settings.favicon_url if settings else None,
-            "primary_color": settings.primary_color if settings else "#94d4ad",
-            "secondary_color": settings.secondary_color if settings else "#bfc1ff"
-        }
-
         # 3. Handle Agreement and Shares
         existing_agreement = db.query(Agreement).filter(
             Agreement.company_id == company_id,
@@ -139,6 +123,27 @@ def update_partner_share(
         ).first()
 
         if existing_agreement:
+            # PRESERVE existing proposed_settings if they exist
+            if existing_agreement.proposed_settings:
+                proposed_settings = existing_agreement.proposed_settings
+            else:
+                # Prepare Settings Snapshot from DB
+                settings = db.query(GlobalSettings).filter(GlobalSettings.company_id == company_id).first()
+                proposed_settings = {
+                    "charity_percentage": settings.charity_percentage if settings else 0.06,
+                    "partnership_mode": settings.partnership_mode if settings else "both",
+                    "labour_share_mode": settings.labour_share_mode if settings else "time",
+                    "currency_symbol": settings.currency_symbol if settings else "£",
+                    "capital_pool_percentage": settings.capital_pool_percentage if settings else 0.50,
+                    "labour_pool_percentage": settings.labour_pool_percentage if settings else 0.50,
+                    "contingency_pot_minimum": settings.contingency_pot_minimum if settings else 10000.0,
+                    "logo_url": settings.logo_url if settings else None,
+                    "favicon_url": settings.favicon_url if settings else None,
+                    "primary_color": settings.primary_color if settings else "#94d4ad",
+                    "secondary_color": settings.secondary_color if settings else "#bfc1ff"
+                }
+
+            # Update existing agreement
             # Update existing agreement
             proposed_shares = list(existing_agreement.proposed_shares or [])
             found = False
@@ -175,6 +180,22 @@ def update_partner_share(
             agreement = existing_agreement
         else:
             # Create new agreement
+            # Prepare Settings Snapshot from DB
+            settings = db.query(GlobalSettings).filter(GlobalSettings.company_id == company_id).first()
+            proposed_settings = {
+                "charity_percentage": settings.charity_percentage if settings else 0.06,
+                "partnership_mode": settings.partnership_mode if settings else "both",
+                "labour_share_mode": settings.labour_share_mode if settings else "time",
+                "currency_symbol": settings.currency_symbol if settings else "£",
+                "capital_pool_percentage": settings.capital_pool_percentage if settings else 0.50,
+                "labour_pool_percentage": settings.labour_pool_percentage if settings else 0.50,
+                "contingency_pot_minimum": settings.contingency_pot_minimum if settings else 10000.0,
+                "logo_url": settings.logo_url if settings else None,
+                "favicon_url": settings.favicon_url if settings else None,
+                "primary_color": settings.primary_color if settings else "#94d4ad",
+                "secondary_color": settings.secondary_color if settings else "#bfc1ff"
+            }
+
             current_shares = db.query(PartnerShare).filter(PartnerShare.company_id == company_id).all()
             proposed_shares = []
             found_target = False
