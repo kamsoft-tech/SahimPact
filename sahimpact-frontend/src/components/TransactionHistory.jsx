@@ -1,4 +1,36 @@
 import React, { useState } from 'react'
+import { 
+    Edit2, 
+    Trash2, 
+    Check, 
+    X, 
+    Lock, 
+    History, 
+    AlertTriangle,
+    MoreHorizontal,
+    ArrowUpRight,
+    ArrowDownLeft
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const TransactionHistory = ({ 
     transactions, 
@@ -6,15 +38,16 @@ const TransactionHistory = ({
     onDeleteTransaction, 
     onDeleteAllTransactions, 
     onBulkDeleteTransactions,
-    currencySymbol,
-    user 
+    currencySymbol = '£',
+    user,
+    className
 }) => {
     const isAdmin = user && String(user.role).toLowerCase() === 'admin';
     const [editingId, setEditingId] = useState(null)
     const [editForm, setEditForm] = useState({})
     const [selectedTxs, setSelectedTxs] = useState([])
 
-    const formatCurrency = (val) => `${currencySymbol}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatCurrency = (val) => `${currencySymbol}${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const handleEditClick = (tx) => {
         setEditingId(tx.id)
@@ -29,8 +62,8 @@ const TransactionHistory = ({
         }
     }
 
-    const handleSelectAll = (e) => {
-        if (e.target.checked) setSelectedTxs(transactions.map(t => t.id))
+    const handleSelectAll = (checked) => {
+        if (checked) setSelectedTxs(transactions.map(t => t.id))
         else setSelectedTxs([])
     }
 
@@ -41,7 +74,6 @@ const TransactionHistory = ({
 
     const executeBulkDelete = () => {
         if (selectedTxs.length > 0) {
-            // Un-check them all first
             const idsToDelete = [...selectedTxs]
             setSelectedTxs([])
             onBulkDeleteTransactions(idsToDelete)
@@ -50,166 +82,204 @@ const TransactionHistory = ({
 
     if (transactions.length === 0) {
         return (
-            <section className="animate-fade-in delay-300 glass-card">
-                <h2 className="mb-4">Ledger History</h2>
-                <div className="text-center text-muted p-4 border" style={{ border: '1px dashed rgba(255,255,255,0.2)', borderRadius: 'var(--radius-sm)' }}>
-                    No transactions added yet. Use the "+ Add Transaction" button to begin.
-                </div>
-            </section>
+            <Card className={cn("bg-bg-surface border-border-muted/50 overflow-hidden shadow-sm", className)}>
+                <CardHeader>
+                    <CardTitle className="text-xl font-black text-text-main font-brand uppercase tracking-tighter">Ledger Registry</CardTitle>
+                    <CardDescription className="text-[10px] font-black uppercase tracking-widest text-text-muted">Historical record of all verified movements</CardDescription>
+                </CardHeader>
+                <CardContent className="py-20 flex flex-col items-center justify-center gap-4 opacity-30">
+                    <History className="w-12 h-12 text-text-muted" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">No historical data available</p>
+                </CardContent>
+            </Card>
         )
     }
 
     return (
-        <section className="animate-fade-in delay-300 glass-card" style={{ overflowX: 'auto' }}>
-            <div className="flex-between mb-4">
-                <h2 className="m-0">Ledger History</h2>
+        <Card className={cn("bg-bg-surface border-border-muted/50 overflow-hidden shadow-sm", className)}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 border-b border-border-muted/10 bg-bg-base/30">
+                <div>
+                    <CardTitle className="text-xl font-black text-text-main font-brand uppercase tracking-tighter">Ledger Registry</CardTitle>
+                    <CardDescription className="text-[10px] font-black uppercase tracking-widest text-text-muted">Historical record of all verified movements</CardDescription>
+                </div>
                 {isAdmin && (
                     <div className="flex items-center gap-2">
                         {selectedTxs.length > 0 && (
-                            <button 
-                                className="btn btn-danger text-xs" 
-                                style={{ padding: '0.2rem 0.6rem', height: 'auto', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)' }}
+                            <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                className="h-8 text-[9px] font-black uppercase tracking-widest px-3 rounded-lg animate-in zoom-in-95"
                                 onClick={executeBulkDelete}
                             >
-                                Delete Selected ({selectedTxs.length})
-                            </button>
+                                <Trash2 className="w-3 h-3 mr-2" /> Delete ({selectedTxs.length})
+                            </Button>
                         )}
-                        <button 
-                            className="btn btn-danger text-xs" 
-                            style={{ padding: '0.2rem 0.6rem', height: 'auto', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-[9px] font-black uppercase tracking-widest text-destructive hover:bg-destructive/10 px-3 rounded-lg"
                             onClick={onDeleteAllTransactions}
                         >
-                            Clear All Transactions
-                        </button>
+                            Purge Records
+                        </Button>
                     </div>
                 )}
-            </div>
-            <table className="data-table">
-                <thead>
-                    <tr>
-                        {isAdmin && (
-                            <th style={{ width: '40px', textAlign: 'center' }}>
-                                <input 
-                                    type="checkbox" 
-                                    onChange={handleSelectAll}
-                                    checked={transactions.length > 0 && selectedTxs.length === transactions.length}
-                                />
-                            </th>
-                        )}
-                        <th>Date</th>
-                        <th>User</th>
-                        <th>Type</th>
-                        <th>Description</th>
-                        <th>Amount</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {transactions.map((tx) => (
-                        <tr key={tx.id}>
+            </CardHeader>
+            
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader className="bg-bg-base/50">
+                        <TableRow className="hover:bg-transparent border-border-muted/10">
                             {isAdmin && (
-                                <td style={{ textAlign: 'center' }}>
+                                <TableHead className="w-12 px-6">
                                     <input 
                                         type="checkbox" 
-                                        checked={selectedTxs.includes(tx.id)}
-                                        onChange={() => handleSelectOne(tx.id)}
+                                        className="w-4 h-4 rounded-md border-border-muted bg-bg-base text-primary focus:ring-primary/20"
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        checked={transactions.length > 0 && selectedTxs.length === transactions.length}
                                     />
-                                </td>
+                                </TableHead>
                             )}
-                            {editingId === tx.id ? (
-                                <>
-                                    <td>{tx.date}</td>
-                                    <td className="text-muted text-xs">{tx.created_by || 'System'}</td>
-                                    <td>
-                                        <select
-                                            value={editForm.type}
-                                            onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
-                                            style={{
-                                                padding: '0.25rem', background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: '4px'
-                                            }}
-                                        >
-                                            <option value="sales">Sales (Income)</option>
-                                            <option value="expense">Purchase (Expense)</option>
-                                            <option value="salary">Salary (Expense)</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={editForm.description}
-                                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                            style={{
-                                                padding: '0.25rem', background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: '4px', width: '100%'
-                                            }}
+                            <TableHead className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-text-muted">Status & Date</TableHead>
+                            <TableHead className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-text-muted">Entity</TableHead>
+                            <TableHead className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-text-muted">Classification</TableHead>
+                            <TableHead className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-text-muted">Description</TableHead>
+                            <TableHead className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-text-muted text-right">Value</TableHead>
+                            <TableHead className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-text-muted text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions.map((tx) => (
+                            <TableRow key={tx.id} className="hover:bg-primary/[0.02] border-border-muted/5 transition-colors group">
+                                {isAdmin && (
+                                    <TableCell className="px-6">
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 rounded-md border-border-muted bg-bg-base text-primary focus:ring-primary/20"
+                                            checked={selectedTxs.includes(tx.id)}
+                                            onChange={() => handleSelectOne(tx.id)}
                                         />
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            <span>{currencySymbol}</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={editForm.amount}
-                                                onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                                                style={{
-                                                    padding: '0.25rem', background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: '4px', width: '80px'
-                                                }}
+                                    </TableCell>
+                                )}
+                                
+                                {editingId === tx.id ? (
+                                    <>
+                                        <TableCell className="px-6 py-4">
+                                            <span className="text-[10px] font-bold text-text-muted">{tx.date}</span>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <Badge variant="outline" className="text-[8px] font-bold uppercase tracking-widest opacity-50">{tx.created_by || 'System'}</Badge>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <Select 
+                                                value={editForm.type} 
+                                                onValueChange={(val) => setEditForm({ ...editForm, type: val })}
+                                            >
+                                                <SelectTrigger className="h-8 text-[10px] font-black uppercase tracking-widest bg-bg-base border-border-muted/50">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-bg-surface border-border-muted">
+                                                    <SelectItem value="sales" className="text-[10px] font-black uppercase tracking-widest">Revenue</SelectItem>
+                                                    <SelectItem value="expense" className="text-[10px] font-black uppercase tracking-widest">Expense</SelectItem>
+                                                    <SelectItem value="salary" className="text-[10px] font-black uppercase tracking-widest">Salary</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <Input 
+                                                value={editForm.description} 
+                                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                                className="h-8 text-xs font-bold bg-bg-base border-border-muted/50"
                                             />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <button onClick={handleSave} className="text-secondary" style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', marginRight: '0.5rem' }}>Save</button>
-                                        <button onClick={() => setEditingId(null)} className="text-muted" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
-                                    </td>
-                                </>
-                            ) : (
-                                <>
-                                    <td className="text-muted">{tx.date}</td>
-                                    <td className="text-muted text-xs">{tx.created_by || 'System'}</td>
-                                    <td>
-                                        <span className={`badge ${tx.type === 'sales' ? 'bg-secondary text-black' : 'bg-danger text-white'}`} style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                                            {tx.type.toUpperCase()}
-                                        </span>
-                                    </td>
-                                    <td className="flex items-center gap-2">
-                                        {tx.description}
-                                        {tx.is_closed && (
-                                            <span title="This transaction is locked due to month-end close-out">
-                                                <svg className="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="fw-bold">{formatCurrency(tx.amount)}</td>
-                                    <td className="flex items-center gap-2">
-                                        {!tx.is_closed ? (
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleEditClick(tx)} className="text-main" style={{ background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Edit</button>
-                                                {isAdmin && (
-                                                    <button 
-                                                        onClick={() => onDeleteTransaction(tx.id)} 
-                                                        className="text-danger" 
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                                                        title="Delete Transaction"
-                                                    >
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-xs font-black text-text-muted">{currencySymbol}</span>
+                                                <Input 
+                                                    type="number"
+                                                    value={editForm.amount} 
+                                                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                                                    className="h-8 text-xs font-black bg-bg-base border-border-muted/50 w-24 text-right"
+                                                />
                                             </div>
-                                        ) : (
-                                            <span className="text-xs text-muted italic">Locked</span>
-                                        )}
-                                    </td>
-                                </>
-                            )}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </section>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-1">
+                                                <Button size="icon" variant="ghost" className="w-7 h-7 text-primary hover:bg-primary/10" onClick={handleSave}>
+                                                    <Check className="w-3.5 h-3.5" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="w-7 h-7 text-text-muted hover:bg-bg-base" onClick={() => setEditingId(null)}>
+                                                    <X className="w-3.5 h-3.5" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TableCell className="px-6 py-4">
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-2">
+                                                    {tx.is_closed ? <Lock className="w-2.5 h-2.5 text-destructive" /> : <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />}
+                                                    <span className="text-[10px] font-black text-text-main font-tabular">{tx.date}</span>
+                                                </div>
+                                                <span className="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-3.5">Verified Entry</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <Badge variant="ghost" className="text-[9px] font-black uppercase tracking-widest text-text-muted/60 bg-bg-base border border-border-muted/10 h-5 px-2">
+                                                {tx.created_by || 'System'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <Badge className={cn(
+                                                "text-[9px] font-black uppercase tracking-widest rounded-md border-none h-5 px-2",
+                                                tx.type === 'sales' ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
+                                            )}>
+                                                {tx.type === 'sales' ? 'Revenue' : tx.type}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <span className="text-xs font-bold text-text-main group-hover:text-primary transition-colors">{tx.description}</span>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-right">
+                                            <div className="flex flex-col items-end">
+                                                <span className={cn(
+                                                    "text-sm font-black font-tabular tracking-tight",
+                                                    tx.type === 'sales' ? 'text-primary' : 'text-text-main'
+                                                )}>
+                                                    {tx.type === 'sales' ? '+' : '-'}{formatCurrency(tx.amount)}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-right">
+                                            {!tx.is_closed ? (
+                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button size="icon" variant="ghost" className="w-7 h-7 text-text-muted hover:text-primary hover:bg-primary/10" onClick={() => handleEditClick(tx)}>
+                                                        <Edit2 className="w-3 h-3" />
+                                                    </Button>
+                                                    {isAdmin && (
+                                                        <Button size="icon" variant="ghost" className="w-7 h-7 text-text-muted hover:text-destructive hover:bg-destructive/10" onClick={() => onDeleteTransaction(tx.id)}>
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <Lock className="w-3 h-3 text-text-muted/30 ml-auto" />
+                                            )}
+                                        </TableCell>
+                                    </>
+                                )}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+            <CardFooter className="bg-bg-base/30 border-t border-border-muted/10 p-4">
+                <div className="flex items-center gap-2 text-[9px] font-black text-text-muted/40 uppercase tracking-[0.2em]">
+                    <AlertTriangle className="w-3 h-3" /> Transactions are immutable once period is closed.
+                </div>
+            </CardFooter>
+        </Card>
     )
 }
 

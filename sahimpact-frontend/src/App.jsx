@@ -14,14 +14,19 @@ import Account from './pages/Account';
 import Login from './pages/Login';
 import TimeLog from './pages/TimeLog';
 import CharityManagement from './pages/CharityManagement';
+import CompanySelector from './pages/CompanySelector';
 import { useAuth } from './context/AuthContext';
 import { Navigate } from 'react-router-dom';
 
 const HomeRedirect = () => {
     const { role, loading } = useAuth();
     if (loading) return (
-        <div className="flex items-center justify-center h-[60vh]">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+            <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin relative z-10"></div>
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary animate-pulse">Synchronizing</p>
         </div>
     );
     
@@ -42,7 +47,9 @@ const App = () => {
                     {/* Private Routes */}
                     <Route element={
                         <ProtectedRoute>
-                            <Layout />
+                            <CompanyGuard>
+                                <Layout />
+                            </CompanyGuard>
                         </ProtectedRoute>
                     }>
                         <Route path="/" element={<HomeRedirect />} />
@@ -84,6 +91,20 @@ const App = () => {
             </Router>
         </NotificationProvider>
     );
+};
+
+const CompanyGuard = ({ children }) => {
+    const { isAuthenticated, activeCompanyId, companies, loading } = useAuth();
+    
+    if (loading) return null;
+    if (!isAuthenticated) return <Navigate to="/login" replace />;
+    
+    // If user belongs to multiple companies and hasn't picked one
+    if (companies.length > 1 && !activeCompanyId) {
+        return <CompanySelector />;
+    }
+    
+    return children;
 };
 
 export default App;

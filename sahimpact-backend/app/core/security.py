@@ -128,13 +128,18 @@ def require_super_admin_role(claims: dict = Depends(get_current_user_claims)):
     return claims
 
 def get_current_company_id(request: Request, claims: dict = Depends(get_current_user_claims)):
-    # Super admins might not inherently have a company_id if they manage across, but for now we look for it
+    # 1. Check for X-Company-ID header (allows manual override, e.g. for Super Admins or multi-company users)
+    header_company_id = request.headers.get("X-Company-ID")
+    if header_company_id and header_company_id.isdigit():
+        return int(header_company_id)
+
+    # 2. Fallback to JWT claims
     company_id = claims.get("company_id")
     role = claims.get("role")
     if not company_id and role != RoleEnum.SUPER_ADMIN.value:
         raise HTTPException(status_code=400, detail="User is not associated with a company")
     
-    # This dependency is usually used alongside role checks, but we'll add a safety check
+    # Validation
     if role != RoleEnum.SUPER_ADMIN.value and company_id:
         from app.db.database import SessionLocal
         from app.models.models import Company

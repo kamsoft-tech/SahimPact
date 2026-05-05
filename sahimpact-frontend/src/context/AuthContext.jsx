@@ -12,16 +12,33 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(sessionStorage.getItem('token'));
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = useState([]);
+  const [activeCompanyId, setActiveCompanyId] = useState(sessionStorage.getItem('company_id'));
+
+  // Configure axios interceptor for Company ID
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use((config) => {
+      const companyId = sessionStorage.getItem('company_id');
+      if (companyId && companyId !== 'null') {
+        config.headers['X-Company-ID'] = companyId;
+      }
+      return config;
+    });
+    return () => axios.interceptors.request.eject(interceptor);
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
       if (token) {
-        // Set global header for all subsequent calls
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         try {
           const res = await axios.get('/api/me');
           setUser(res.data);
-          // Sync sessionStorage
+          
+          // Also fetch companies to ensure UI is in sync
+          const compRes = await axios.get('/api/me/companies');
+          setCompanies(compRes.data || []);
+          
           sessionStorage.setItem('user_role', res.data.role);
           sessionStorage.setItem('username', res.data.username);
         } catch (error) {
@@ -43,29 +60,47 @@ export const AuthProvider = ({ children }) => {
 
     const res = await axios.post('/api/token', params);
     
-    const { access_token, role, company_id } = res.data;
+    const { access_token, role, company_id, companies: userCompanies } = res.data;
     sessionStorage.setItem('token', access_token);
     sessionStorage.setItem('user_role', role);
     sessionStorage.setItem('username', username);
-    sessionStorage.setItem('company_id', company_id);
     
+    // Auto-set company only if there is exactly one option, otherwise force selection
+    const userCompaniesList = userCompanies || [];
+    if (userCompaniesList.length === 1) {
+        const defaultId = userCompaniesList[0].id;
+        sessionStorage.setItem('company_id', defaultId);
+        setActiveCompanyId(defaultId);
+    } else {
+        sessionStorage.removeItem('company_id');
+        setActiveCompanyId(null);
+    }
+    
+    setCompanies(userCompanies || []);
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setToken(access_token);
     return res.data;
+  };
+
+  const switchCompany = (id) => {
+    sessionStorage.setItem('company_id', id);
+    setActiveCompanyId(id);
+    // Reload branding and data by notifying listeners
+    window.dispatchEvent(new Event('company-switched'));
   };
 
   const logout = () => {
     sessionStorage.clear();
     setToken(null);
     setUser(null);
+    setCompanies([]);
+    setActiveCompanyId(null);
   };
 
   const refreshUser = async () => {
     try {
       const res = await axios.get('/api/me');
       setUser(res.data);
-      sessionStorage.setItem('user_role', res.data.role);
-      sessionStorage.setItem('username', res.data.username);
     } catch (error) {
       console.error("Failed to refresh user data", error);
     }
@@ -74,7 +109,19 @@ export const AuthProvider = ({ children }) => {
   const currentRole = user?.role || sessionStorage.getItem('user_role');
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout, refreshUser, isAuthenticated: !!token, loading, role: currentRole }}>
+    <AuthContext.Provider value={{ 
+        token, 
+        user, 
+        login, 
+        logout, 
+        refreshUser, 
+        isAuthenticated: !!token, 
+        loading, 
+        role: currentRole,
+        companies,
+        activeCompanyId,
+        switchCompany
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,28 +1,135 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import {
+    Plus,
+    Calendar,
+    Clock,
+    Users,
+    User as UserIcon,
+    History,
+    Edit2,
+    Trash2,
+    Lock,
+    Unlock,
+    Loader2,
+    Search,
+    ChevronDown,
+    Activity
+} from "lucide-react";
+
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription
+} from "@/components/ui/dialog";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+    FormDescription
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const timeEntrySchema = z.object({
+    start_time: z.string().min(1, "Start time is required"),
+    end_time: z.string().min(1, "End time is required"),
+    description: z.string().min(1, "Description is mandatory").max(1000, "Description too long"),
+}).refine((data) => {
+    const start = new Date(data.start_time);
+    const end = new Date(data.end_time);
+    return end > start;
+}, {
+    message: "End time must be after start time",
+    path: ["end_time"],
+}).refine((data) => {
+    const start = new Date(data.start_time);
+    const end = new Date(data.end_time);
+    const hours = (end - start) / (1000 * 60 * 60);
+    return hours <= 15;
+}, {
+    message: "Maximum 15 hours per entry",
+    path: ["end_time"],
+});
 
 const TimeLog = () => {
     const [entries, setEntries] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [isEditing, setIsEditing] = useState(null); // ID of entry being edited
+    const [isEditing, setIsEditing] = useState(null);
     const [timeStats, setTimeStats] = useState({ my_total_hours: 0, company_total_hours: 0 });
     const { showNotification } = useNotification();
     const { user, role } = useAuth();
+    const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, entryId: null });
+
     const currentUserId = user?.id || parseInt(sessionStorage.getItem('user_id'));
     const isAdmin = role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN';
 
-    // Filters & View State
-    const [viewMode, setViewMode] = useState('my'); // 'my' or 'company'
+    const [viewMode, setViewMode] = useState('my');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-    // Form State
-    const [startTime, setStartTime] = useState('');
-    const [endTime, setEndTime] = useState('');
-    const [description, setDescription] = useState('');
+    const form = useForm({
+        resolver: zodResolver(timeEntrySchema),
+        defaultValues: {
+            start_time: "",
+            end_time: "",
+            description: "",
+        },
+    });
+
+    // Auto-sync end_time date when start_time changes
+    useEffect(() => {
+        const subscription = form.watch((value, { name }) => {
+            if (name === 'start_time' && value.start_time) {
+                const currentEnd = form.getValues('end_time');
+                // If end_time is empty or before start_time, or same date sync is requested
+                if (!currentEnd || currentEnd < value.start_time) {
+                    form.setValue('end_time', value.start_time);
+                } else {
+                    // Just sync the date part if it's different (optional, but requested)
+                    const startDate = value.start_time.split('T')[0];
+                    const endDate = currentEnd.split('T')[0];
+                    if (startDate !== endDate) {
+                        const endTime = currentEnd.split('T')[1];
+                        form.setValue('end_time', `${startDate}T${endTime}`);
+                    }
+                }
+            }
+        });
+        return () => subscription.unsubscribe();
+    }, [form]);
 
     useEffect(() => {
         fetchEntries();
@@ -35,62 +142,29 @@ const TimeLog = () => {
             setTimeStats(res.data || { my_total_hours: 0, company_total_hours: 0 });
         } catch (error) {
             console.error("Failed to fetch time stats", error);
-            setTimeStats({ my_total_hours: 0, company_total_hours: 0 });
         }
     };
 
     const fetchEntries = async () => {
         setIsLoading(true);
         try {
-            // If viewMode is 'my', we could use the dedicated endpoint or just filter 'all'
-            // To support historical logs for everyone, we use /api/time/all with filters
             const endpoint = viewMode === 'my' ? '/api/time' : '/api/time/all';
-            const params = {
-                month: selectedMonth,
-                year: selectedYear
-            };
+            const params = { month: selectedMonth, year: selectedYear };
             const res = await axios.get(endpoint, { params });
             setEntries(res.data);
         } catch (error) {
-            console.error("Failed to fetch time entries", error);
             showNotification("Failed to load time entries", "error");
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const onSubmit = async (values) => {
         try {
-            if (!description.trim()) {
-                showNotification("Description is mandatory", "error");
-                return;
-            }
-
-            const start = new Date(startTime);
-            const end = new Date(endTime);
-            
-            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-                showNotification("Please select valid start and end times", "error");
-                return;
-            }
-
-            if (end <= start) {
-                showNotification("End time must be after start time", "error");
-                return;
-            }
-
-            const hours = (end - start) / (1000 * 60 * 60);
-
-            if (hours > 15) {
-                showNotification("Cannot log more than 15 hours in one go", "error");
-                return;
-            }
-
             const payload = {
-                start_time: start.toISOString(),
-                end_time: end.toISOString(),
-                description: description.trim()
+                start_time: new Date(values.start_time).toISOString(),
+                end_time: new Date(values.end_time).toISOString(),
+                description: values.description.trim()
             };
 
             if (isEditing) {
@@ -103,17 +177,23 @@ const TimeLog = () => {
 
             closeModal();
             fetchEntries();
+            fetchStats(); // Added to refresh dashboard tiles
         } catch (error) {
-            showNotification(error.response?.data?.detail || "Failed to save time entry", "error");
+            showNotification(error.response?.data?.detail || "Failed to save entry", "error");
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this time entry?")) return;
+    const handleDelete = (id) => {
+        setDeleteConfirm({ isOpen: true, entryId: id });
+    };
+
+    const executeDelete = async () => {
+        const { entryId } = deleteConfirm;
         try {
-            await axios.delete(`/api/time/${id}`);
+            await axios.delete(`/api/time/${entryId}`);
             showNotification("Entry deleted", "success");
             fetchEntries();
+            fetchStats(); // Added to refresh dashboard tiles
         } catch (error) {
             showNotification("Failed to delete entry", "error");
         }
@@ -121,27 +201,26 @@ const TimeLog = () => {
 
     const openEditModal = (entry) => {
         setIsEditing(entry.id);
-        // Convert to local datetime string format YYYY-MM-DDTHH:mm
         const start = new Date(entry.start_time);
         const end = new Date(entry.end_time);
-        
+
         const toLocalISO = (date) => {
             const tzOffset = date.getTimezoneOffset() * 60000;
             return new Date(date - tzOffset).toISOString().slice(0, 16);
         };
 
-        setStartTime(toLocalISO(start));
-        setEndTime(toLocalISO(end));
-        setDescription(entry.description || '');
+        form.reset({
+            start_time: toLocalISO(start),
+            end_time: toLocalISO(end),
+            description: entry.description || '',
+        });
         setShowModal(true);
     };
 
     const closeModal = () => {
         setShowModal(false);
         setIsEditing(null);
-        setStartTime('');
-        setEndTime('');
-        setDescription('');
+        form.reset();
     };
 
     const months = [
@@ -153,297 +232,360 @@ const TimeLog = () => {
     const years = [currentYear - 1, currentYear, currentYear + 1];
 
     return (
-        <div className="flex flex-col gap-6 md:gap-8 animate-fade-in p-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-outline-variant pb-6 gap-6">
+        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+            <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-border-muted/30 pb-8 gap-6">
                 <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight">Time Ledger</h1>
-                    <p className="text-on-surface-variant mt-2 max-w-xl">
-                        Track and audit labour contributions. Logs are locked once month-end distribution is processed.
-                    </p>
+                    <h1 className="text-4xl font-black text-text-main font-brand uppercase tracking-tighter">Time Log</h1>
+                    <p className="text-text-muted mt-2 font-medium">Verify and audit working contributions across the partnership.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex bg-surface-container rounded-lg p-1 border border-outline-variant/30">
-                        <button 
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <div className="flex bg-bg-surface rounded-xl p-1 border border-border-muted/30 w-full md:w-auto">
+                        <Button
+                            variant="ghost"
                             onClick={() => setViewMode('my')}
-                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'my' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                            className={cn(
+                                "flex-1 md:flex-none h-10 px-6 font-black uppercase tracking-widest text-[10px] rounded-lg transition-all",
+                                viewMode === 'my' ? "bg-primary text-on-primary shadow-sm hover:bg-primary/90" : "text-text-muted hover:bg-bg-base"
+                            )}
                         >
                             My Logs
-                        </button>
-                        <button 
+                        </Button>
+                        <Button
+                            variant="ghost"
                             onClick={() => setViewMode('company')}
-                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'company' ? 'bg-secondary text-on-secondary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                            className={cn(
+                                "flex-1 md:flex-none h-10 px-6 font-black uppercase tracking-widest text-[10px] rounded-lg transition-all",
+                                viewMode === 'company' ? "bg-secondary text-on-secondary shadow-sm hover:bg-secondary/90" : "text-text-muted hover:bg-bg-base"
+                            )}
                         >
-                            Partners
-                        </button>
+                            Collective
+                        </Button>
                     </div>
-                    <button onClick={() => setShowModal(true)} className="btn-primary shadow-lg shadow-primary/20">
-                        <span className="material-symbols-outlined text-sm">add</span> Log Hours
-                    </button>
+                    <Button onClick={() => setShowModal(true)} className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl h-12 flex-1 md:flex-none px-6 shadow-lg shadow-primary/20">
+                        <Plus className="w-5 h-5 mr-2" />
+                        Log Hours
+                    </Button>
                 </div>
             </div>
 
-            {/* Quick Stats Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="card bg-primary/5 border-primary/20 flex flex-col gap-1 p-6 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <span className="material-symbols-outlined text-6xl">person</span>
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/70">My Hours (Current Period)</span>
-                    <span className="text-4xl font-black text-primary">{(timeStats?.my_total_hours || 0).toFixed(1)} <small className="text-sm font-bold opacity-60">HRS</small></span>
-                    <p className="text-[10px] text-on-surface-variant mt-2 font-bold uppercase tracking-widest">Calculated from unclosed logs</p>
-                </div>
-                <div className="card bg-secondary/5 border-secondary/20 flex flex-col gap-1 p-6 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <span className="material-symbols-outlined text-6xl">groups</span>
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary/70">Total Team Hours</span>
-                    <span className="text-4xl font-black text-secondary">{(timeStats?.company_total_hours || 0).toFixed(1)} <small className="text-sm font-bold opacity-60">HRS</small></span>
-                    <p className="text-[10px] text-on-surface-variant mt-2 font-bold uppercase tracking-widest">Aggregate across all partners</p>
-                </div>
+                <Card className="bg-primary/[0.03] border-primary/20 shadow-sm overflow-hidden group">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                            <Badge variant="ghost" className="bg-primary/10 text-primary uppercase font-black tracking-widest text-[9px] px-2">Individual Effort</Badge>
+                            <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                                <UserIcon className="w-4 h-4 text-primary" />
+                            </div>
+                        </div>
+                        <CardTitle className="text-[10px] font-black text-primary uppercase tracking-widest mt-4">Personal Contributions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <span className="text-4xl font-black text-text-main font-tabular">{(timeStats?.my_total_hours || 0).toFixed(1)} <small className="text-sm opacity-40">HRS</small></span>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-secondary/[0.03] border-secondary/20 shadow-sm overflow-hidden group">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                            <Badge variant="ghost" className="bg-secondary/10 text-secondary uppercase font-black tracking-widest text-[9px] px-2">Collective Effort</Badge>
+                            <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
+                                <Users className="w-4 h-4 text-secondary" />
+                            </div>
+                        </div>
+                        <CardTitle className="text-[10px] font-black text-secondary uppercase tracking-widest mt-4">Total Partnership Hours</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <span className="text-4xl font-black text-text-main font-tabular">{(timeStats?.company_total_hours || 0).toFixed(1)} <small className="text-sm opacity-40">HRS</small></span>
+                    </CardContent>
+                </Card>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-4 bg-surface-container-low p-4 rounded-2xl border border-outline-variant/20">
-                <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-on-surface-variant">calendar_month</span>
-                    <select 
-                        value={selectedMonth} 
-                        onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                        className="bg-transparent border-none text-sm font-bold focus:ring-0 cursor-pointer input-field !py-1 !px-2"
-                    >
-                        {months.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                    </select>
-                </div>
-                <div className="h-4 w-[1px] bg-outline-variant/30 hidden sm:block"></div>
-                <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-on-surface-variant">schedule</span>
-                    <select 
-                        value={selectedYear} 
-                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                        className="bg-transparent border-none text-sm font-bold focus:ring-0 cursor-pointer input-field !py-1 !px-2"
-                    >
-                        {years.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                </div>
-                <div className="ml-auto text-xs text-on-surface-variant font-medium">
-                    Showing {entries.length} entries for {months[selectedMonth-1]} {selectedYear}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-                <div className="card overflow-hidden p-0 shadow-sm border-outline-variant/20">
-                    <div className="overflow-x-auto hidden sm:block">
-                        <table className="w-full text-left min-w-[800px]">
-                            <thead className="bg-surface-container-highest border-b border-outline-variant">
-                                <tr>
-                                    <th className="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Partner</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Start Date & Time</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right">Hours</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Description</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-outline-variant/30">
-                                {entries.map((entry) => (
-                                    <tr key={entry.id} className="hover:bg-surface-container-high transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary">
-                                                    {entry.partner_name?.substring(0, 2).toUpperCase()}
-                                                </div>
-                                                <span className="text-sm font-bold">{entry.partner_name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm font-medium">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold">{new Date(entry.start_time).toLocaleDateString()}</span>
-                                                <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-tighter">
-                                                    {new Date(entry.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm font-black text-primary text-right">
-                                            {(entry.hours || 0).toFixed(2)} hrs
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-on-surface-variant">
-                                            {entry.description || 'No description'}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`w-2 h-2 rounded-full ${entry.is_closed ? 'bg-secondary' : 'bg-primary animate-pulse'}`}></span>
-                                                <span className={`text-[10px] font-black uppercase tracking-widest ${entry.is_closed ? 'text-secondary' : 'text-primary'}`}>
-                                                    {entry.is_closed ? 'Locked' : 'Open'}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {!entry.is_closed && (isAdmin || entry.user_id === currentUserId) && (
-                                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button 
-                                                        onClick={() => openEditModal(entry)} 
-                                                        className="p-1.5 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                                                        title="Edit Entry"
-                                                    >
-                                                        <span className="material-symbols-outlined text-lg">edit</span>
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleDelete(entry.id)} 
-                                                        className="p-1.5 rounded-lg hover:bg-error/10 text-error transition-colors"
-                                                        title="Delete Entry"
-                                                    >
-                                                        <span className="material-symbols-outlined text-lg">delete</span>
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {entry.is_closed && (
-                                                <span className="material-symbols-outlined text-on-surface-variant/30 text-lg" title="Locked entries cannot be modified">lock</span>
-                                            )}
-                                        </td>
-                                    </tr>
+            <div className="flex flex-col sm:flex-row items-center gap-4 bg-bg-surface p-4 rounded-2xl border border-border-muted/30 shadow-sm">
+                <div className="flex items-center gap-3 flex-1 w-full">
+                    <div className="flex items-center gap-2 bg-bg-base px-3 py-2 rounded-xl border border-border-muted/20 flex-1">
+                        <Calendar className="w-3.5 h-3.5 text-text-muted" />
+                        <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                            <SelectTrigger className="w-full border-none font-bold h-7 p-0 focus:ring-0 uppercase text-[10px] tracking-widest">
+                                <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-bg-surface border-border-muted">
+                                {months.map((m, i) => (
+                                    <SelectItem key={m} value={(i + 1).toString()} className="text-[10px] font-black uppercase tracking-widest">{m}</SelectItem>
                                 ))}
-                                {entries.length === 0 && !isLoading && (
-                                    <tr>
-                                        <td colSpan="6" className="px-6 py-12 text-center text-on-surface-variant">
-                                            <div className="flex flex-col items-center gap-2">
-                                                <span className="material-symbols-outlined text-4xl opacity-20">history</span>
-                                                <p>No time entries found for this period.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-                                {isLoading && (
-                                    <tr>
-                                        <td colSpan="6" className="px-6 py-8 text-center">
-                                            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                            </SelectContent>
+                        </Select>
                     </div>
+                    <div className="flex items-center gap-2 bg-bg-base px-3 py-2 rounded-xl border border-border-muted/20 flex-1">
+                        <Activity className="w-3.5 h-3.5 text-text-muted" />
+                        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                            <SelectTrigger className="w-full border-none font-bold h-7 p-0 focus:ring-0 uppercase text-[10px] tracking-widest">
+                                <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-bg-surface border-border-muted">
+                                {years.map(y => (
+                                    <SelectItem key={y} value={y.toString()} className="text-[10px] font-black uppercase tracking-widest">{y}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em] whitespace-nowrap sm:pr-2">
+                    Auditing {entries.length} logs
+                </div>
+            </div>
 
-                    {/* Mobile View Cards */}
-                    <div className="flex flex-col divide-y divide-outline-variant/20 sm:hidden">
-                        {entries.map((entry) => (
-                            <div key={entry.id} className="p-5 flex flex-col gap-4 hover:bg-surface-container-low transition-colors">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary">
-                                            {entry.partner_name?.substring(0, 2).toUpperCase()}
+            <Card className="bg-bg-surface border-border-muted/50 overflow-hidden shadow-sm">
+                {/* Mobile Entry View */}
+                <div className="md:hidden divide-y divide-border-muted/10">
+                    {entries.map((entry) => (
+                        <div key={entry.id} className="p-4 flex flex-col gap-3 hover:bg-primary/[0.02] transition-colors">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-[9px] font-black text-primary border border-primary/20">
+                                        {entry.partner_name?.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <span className="text-[11px] font-black text-text-main uppercase tracking-tighter">{entry.partner_name}</span>
+                                </div>
+                                <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 font-black font-tabular text-[10px] h-6 rounded-md">
+                                    {(entry.hours || 0).toFixed(1)}h
+                                </Badge>
+                            </div>
+                            
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-text-main">{new Date(entry.start_time).toLocaleDateString()}</span>
+                                    <span className="text-[8px] text-text-muted font-black uppercase tracking-widest flex items-center gap-1 mt-0.5">
+                                        <Clock className="w-2.5 h-2.5" />
+                                        {new Date(entry.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(entry.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {!entry.is_closed && (isAdmin || entry.user_id === currentUserId) ? (
+                                        <div className="flex items-center gap-1">
+                                            <Button variant="ghost" size="icon" onClick={() => openEditModal(entry)} className="w-8 h-8 rounded-lg hover:bg-bg-base">
+                                                <Edit2 className="w-3 h-3" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)} className="w-8 h-8 rounded-lg hover:bg-destructive/10 text-destructive">
+                                                <Trash2 className="w-3 h-3" />
+                                            </Button>
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-black">{entry.partner_name}</span>
-                                            <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
-                                                {new Date(entry.start_time).toLocaleDateString()} @ {new Date(entry.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    ) : entry.is_closed && (
+                                        <Lock className="w-3 h-3 text-text-muted/30" />
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {entry.description && (
+                                <p className="text-[10px] text-text-muted font-medium bg-bg-base/50 p-2 rounded-lg italic">
+                                    "{entry.description}"
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                        <TableHeader className="bg-bg-base/50">
+                            <TableRow className="hover:bg-transparent border-border-muted/10">
+                                <TableHead className={cn("px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted", viewMode === 'my' && "hidden lg:table-cell")}>Partner</TableHead>
+                                <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted">Interval</TableHead>
+                                <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted text-right">Hrs</TableHead>
+                                <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted hidden xl:table-cell">Activity Description</TableHead>
+                                <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted hidden sm:table-cell">State</TableHead>
+                                <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {entries.map((entry) => (
+                                <TableRow key={entry.id} className="hover:bg-primary/[0.02] border-border-muted/10 transition-colors group">
+                                    <TableCell className={cn("px-6 py-5", viewMode === 'my' && "hidden lg:table-cell")}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary border border-primary/20">
+                                                {entry.partner_name?.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <span className="text-sm font-black text-text-main">{entry.partner_name}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="px-6 py-5">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-xs font-black text-text-main">{new Date(entry.start_time).toLocaleDateString()}</span>
+                                            <span className="text-[9px] text-text-muted font-black uppercase tracking-widest flex items-center gap-1">
+                                                <Clock className="w-2.5 h-2.5" />
+                                                {new Date(entry.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(entry.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-lg font-black text-primary">{(entry.hours || 0).toFixed(2)}</span>
-                                        <span className="text-[10px] font-bold text-primary/60 uppercase">Hours</span>
-                                    </div>
-                                </div>
-                                
-                                <p className="text-sm text-on-surface-variant bg-surface-container/50 p-3 rounded-xl border border-outline-variant/10 italic">
-                                    {entry.description || 'No description'}
-                                </p>
-
-                                <div className="flex items-center justify-between mt-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`w-2 h-2 rounded-full ${entry.is_closed ? 'bg-secondary' : 'bg-primary animate-pulse'}`}></span>
-                                        <span className={`text-[10px] font-black uppercase tracking-widest ${entry.is_closed ? 'text-secondary' : 'text-primary'}`}>
-                                            {entry.is_closed ? 'Locked' : 'Open'}
-                                        </span>
-                                    </div>
-                                    
-                                    {!entry.is_closed && (isAdmin || entry.user_id === currentUserId) && (
+                                    </TableCell>
+                                    <TableCell className="px-6 py-5 text-right">
+                                        <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 font-black font-tabular text-sm px-2 h-7 rounded-lg">
+                                            {(entry.hours || 0).toFixed(1)}h
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="px-6 py-5 hidden xl:table-cell">
+                                        <p className="text-xs text-text-muted font-medium line-clamp-1 max-w-[200px]" title={entry.description}>
+                                            {entry.description || 'N/A'}
+                                        </p>
+                                    </TableCell>
+                                    <TableCell className="px-6 py-5 hidden sm:table-cell">
                                         <div className="flex items-center gap-2">
-                                            <button 
-                                                onClick={() => openEditModal(entry)} 
-                                                className="p-2 rounded-xl bg-primary/10 text-primary"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">edit</span>
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(entry.id)} 
-                                                className="p-2 rounded-xl bg-error/10 text-error"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">delete</span>
-                                            </button>
+                                            {entry.is_closed ? (
+                                                <Badge className="bg-bg-base text-text-muted border-border-muted font-black text-[9px] tracking-widest h-6 rounded-md">
+                                                    <Lock className="w-2.5 h-2.5 mr-1" /> Locked
+                                                </Badge>
+                                            ) : (
+                                                <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[9px] tracking-widest h-6 rounded-md">
+                                                    <Unlock className="w-2.5 h-2.5 mr-1" /> Open
+                                                </Badge>
+                                            )}
                                         </div>
-                                    )}
-                                    {entry.is_closed && (
-                                        <span className="material-symbols-outlined text-on-surface-variant/30 text-lg">lock</span>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                        {entries.length === 0 && !isLoading && (
-                            <div className="p-12 text-center text-on-surface-variant">
-                                <span className="material-symbols-outlined text-4xl opacity-20">history</span>
-                                <p className="mt-2 text-sm font-bold uppercase tracking-widest">No entries found</p>
-                            </div>
-                        )}
-                    </div>
+                                    </TableCell>
+                                    <TableCell className="px-6 py-5 text-right">
+                                        {!entry.is_closed && (isAdmin || entry.user_id === currentUserId) ? (
+                                            <div className="flex items-center justify-end gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => openEditModal(entry)}
+                                                    className="w-9 h-9 rounded-xl hover:bg-bg-base hover:text-primary"
+                                                >
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleDelete(entry.id)}
+                                                    className="w-9 h-9 rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </Button>
+                                            </div>
+                                        ) : entry.is_closed && (
+                                            <div className="flex justify-end opacity-20">
+                                                <Lock className="w-4 h-4" />
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {entries.length === 0 && !isLoading && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="py-20 text-center">
+                                        <div className="flex flex-col items-center gap-3 opacity-30">
+                                            <History className="w-12 h-12 text-text-muted" />
+                                            <p className="text-text-muted font-bold uppercase tracking-widest text-xs">No entries found.</p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {isLoading && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="py-20 text-center">
+                                        <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
                 </div>
-            </div>
+            </Card>
 
-            {/* Log Hours Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-                    <div className="card w-full max-w-md animate-scale-in shadow-2xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold">{isEditing ? 'Edit Time Entry' : 'Log Working Hours'}</h3>
-                            <button onClick={closeModal} className="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-surface-container-high transition-colors">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <Dialog open={showModal} onOpenChange={(open) => !open && closeModal()}>
+                <DialogContent className="max-w-[95vw] sm:max-w-md bg-bg-surface border-border-muted/50 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black text-text-main font-brand uppercase tracking-tighter">
+                            {isEditing ? 'Modify Entry' : 'Log Labour'}
+                        </DialogTitle>
+                        <DialogDescription className="text-text-muted font-medium">
+                            Record your contributions to the partnership for audit purposes.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1">Start Time</label>
-                                    <input 
-                                        type="datetime-local" 
-                                        className="input-field w-full" 
-                                        value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                        max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-                                        required 
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1">End Time</label>
-                                    <input 
-                                        type="datetime-local" 
-                                        className="input-field w-full" 
-                                        value={endTime}
-                                        onChange={(e) => setEndTime(e.target.value)}
-                                        max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-                                        required 
-                                    />
-                                </div>
+                                <FormField
+                                    control={form.control}
+                                    name="start_time"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Start Interval</FormLabel>
+                                            <FormControl>
+                                                <div className="relative group">
+                                                    <Input
+                                                        type="datetime-local"
+                                                        max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                                                        {...field}
+                                                        onClick={(e) => e.target.showPicker?.()}
+                                                        className="bg-bg-base border-border-muted font-bold h-11 pr-10"
+                                                    />
+                                                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary pointer-events-none" />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage className="text-[10px] font-bold" />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="end_time"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">End Interval</FormLabel>
+                                            <FormControl>
+                                                <div className="relative group">
+                                                    <Input
+                                                        type="datetime-local"
+                                                        max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                                                        {...field}
+                                                        onClick={(e) => e.target.showPicker?.()}
+                                                        className="bg-bg-base border-border-muted font-bold h-11 pr-10"
+                                                    />
+                                                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary pointer-events-none" />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage className="text-[10px] font-bold" />
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1">Activity Description</label>
-                                <textarea 
-                                    className="input-field w-full min-h-[120px] py-3 resize-none" 
-                                    placeholder="What did you work on today?"
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    required
-                                ></textarea>
-                            </div>
-                            <div className="flex gap-3 mt-2">
-                                <button type="button" onClick={closeModal} className="btn-ghost flex-1 py-3">Cancel</button>
-                                <button type="submit" className="btn-primary flex-1 py-3 shadow-lg shadow-primary/30">
-                                    {isEditing ? 'Update Entry' : 'Save Entry'}
-                                </button>
-                            </div>
+                            <FormField
+                                control={form.control}
+                                name="description"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Activity Summary</FormLabel>
+                                        <FormControl>
+                                            <textarea
+                                                className="flex min-h-[120px] w-full rounded-xl border border-border-muted bg-bg-base px-4 py-3 text-sm font-medium ring-offset-background placeholder:text-text-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+                                                placeholder="Briefly describe your contribution..."
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormDescription className="text-[10px] font-medium text-text-muted italic">Max 15 hours per entry for security compliance.</FormDescription>
+                                        <FormMessage className="text-[10px] font-bold" />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter className="gap-3">
+                                <Button type="button" variant="ghost" onClick={closeModal} className="flex-1 h-12 font-black rounded-xl">Cancel</Button>
+                                <Button type="submit" className="bg-primary hover:bg-primary/90 text-on-primary flex-1 h-12 font-black rounded-xl shadow-lg shadow-primary/20 uppercase tracking-widest text-[11px]">
+                                    {isEditing ? 'Update Entry' : 'Seal Entry'}
+                                </Button>
+                            </DialogFooter>
                         </form>
-                    </div>
-                </div>
-            )}
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
+            <ConfirmDialog
+                isOpen={deleteConfirm.isOpen}
+                onOpenChange={(open) => setDeleteConfirm(prev => ({ ...prev, isOpen: open }))}
+                title="Delete Time Entry"
+                description="Are you sure you want to delete this time entry? This action cannot be undone."
+                confirmText="Delete Entry"
+                variant="destructive"
+                onConfirm={executeDelete}
+            />
         </div>
     );
 };

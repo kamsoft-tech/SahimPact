@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Configuration
-PROJECT_NAME="partnersystem"
+PROJECT_NAME="sahimpact"
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 DEPLOY_DIR="$SCRIPT_DIR/app"
-ZIP_FILE="$SCRIPT_DIR/iyi_pl_deploy.zip"
+ZIP_FILE="$SCRIPT_DIR/sahimpact_deploy.zip"
 
 echo "🚀 Starting Production Deployment..."
 

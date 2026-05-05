@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import List, Optional
 from datetime import datetime
@@ -16,6 +17,7 @@ class UserCreateRequest(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    company_id: Optional[int] = None
     is_active: bool
     full_name: Optional[str] = None
     role: RoleEnum
@@ -26,11 +28,22 @@ class UserRoleUpdate(BaseModel):
     role: RoleEnum
 
 
+class CompanyResponse(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+    created_at: Optional[datetime] = None
+    admin_id: Optional[int] = None
+    admin_username: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
 class Token(BaseModel):
     access_token: str
     token_type: str
     role: str
     company_id: Optional[int] = None
+    companies: Optional[List[CompanyResponse]] = None
 
 class TokenData(BaseModel):
     username: Optional[str] = None
@@ -148,8 +161,8 @@ class GlobalSettingsUpdate(GlobalSettingsBase):
     pass
 
 class GlobalSettingsResponse(GlobalSettingsBase):
-    id: int
-    company_id: Optional[int]
+    id: Optional[int] = None
+    company_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -163,15 +176,6 @@ class CompanyUpdate(BaseModel):
     name: Optional[str] = None
 
 
-class CompanyResponse(BaseModel):
-    id: int
-    name: str
-    is_active: bool
-    created_at: Optional[datetime] = None
-    admin_id: Optional[int] = None
-    admin_username: Optional[str] = None
-    
-    model_config = ConfigDict(from_attributes=True)
 
 class CompanyAdminCreate(BaseModel):
     username: str

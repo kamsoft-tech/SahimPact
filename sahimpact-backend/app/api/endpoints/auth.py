@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from __future__ import annotations
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -7,7 +8,7 @@ from pydantic import BaseModel
 
 from app.db.database import get_db
 from app.models.models import User
-from app.schemas.schemas import Token, UserResponse, GlobalStatsResponse, PasswordChangeRequest, AdminPasswordResetRequest, UserUpdate, UserCreateRequest
+from app.schemas.schemas import Token, UserResponse, GlobalStatsResponse, PasswordChangeRequest, AdminPasswordResetRequest, UserUpdate, UserCreateRequest, CompanyResponse
 from app.core.security import (
     verify_password,
     create_access_token,
@@ -17,8 +18,10 @@ from app.core.security import (
     require_super_admin_role,
     get_password_hash,
     get_current_user_claims,
+    get_current_company_id,
     RoleEnum
 )
+from app.models.models import Company, PartnerShare
 
 from typing import List, Optional
 
@@ -28,29 +31,31 @@ router = APIRouter(tags=["Authentication"])
 
 @router.get("/admin/users", response_model=List[UserResponse])
 def list_company_users(
+    request: Request,
     db: Session = Depends(get_db),
     claims: dict = Depends(require_admin_role)
 ):
     """List all users for the authenticated admin's company."""
-    company_id = claims.get("company_id")
+    company_id = get_current_company_id(request, claims)
     if company_id is None:
         if claims.get("role") == RoleEnum.SUPER_ADMIN.value:
             return db.query(User).all()
-        raise HTTPException(status_code=400, detail="Company ID not found in token")
+        raise HTTPException(status_code=400, detail="Company ID context required")
     return db.query(User).filter(User.company_id == company_id).all()
 
 @router.post("/admin/users", response_model=UserResponse)
 def create_partner(
+    request: Request,
     payload: UserCreateRequest,
     db: Session = Depends(get_db),
     claims: dict = Depends(require_admin_role)
 ):
     """Admin creates a new partner or admin in their company."""
-    company_id = claims.get("company_id")
+    company_id = get_current_company_id(request, claims)
     role = claims.get("role")
     
     if company_id is None and role != RoleEnum.SUPER_ADMIN.value:
-         raise HTTPException(status_code=400, detail="Only Company Admins can create users directly.")
+         raise HTTPException(status_code=400, detail="Company ID context required.")
     
     try:
         User.validate_username(payload.username)
@@ -94,6 +99,7 @@ def create_partner(
 
 @router.put("/admin/users/{user_id}", response_model=UserResponse)
 def update_user(
+    request: Request,
     user_id: int,
     user_in: UserUpdate,
     db: Session = Depends(get_db),
@@ -102,7 +108,7 @@ def update_user(
     """
     Update a user's details. Only Company Admins can update users in their company.
     """
-    admin_company_id = claims.get("company_id")
+    admin_company_id = get_current_company_id(request, claims)
     admin_role = claims.get("role")
     current_admin_id = claims.get("user_id")
 
@@ -151,12 +157,34 @@ def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2Passw
         if company and not company.is_active:
              raise HTTPException(status_code=403, detail="Your company account is currently inactive. Please contact support.")
 
+    # Multi-company detection
+    from app.models.models import Company, PartnerShare
+    
+    # Base company association
+    associated_companies = []
+    if user.company_id:
+        c = db.query(Company).filter(Company.id == user.company_id).first()
+        if c: associated_companies.append(c)
+    
+    # Shares association (Many-to-Many)
+    shares = db.query(PartnerShare).filter(PartnerShare.user_id == user.id).all()
+    share_company_ids = [s.company_id for s in shares if s.company_id and s.company_id != user.company_id]
+    if share_company_ids:
+        c_list = db.query(Company).filter(Company.id.in_(share_company_ids)).all()
+        associated_companies.extend(c_list)
+        
+    # Super Admin special case: If not linked to anything, they can manage ALL companies?
+    # User said: "Super admin should only see the data for companies he is linked with. In cases, super admin might even not be linked to any company."
+    # So we don't auto-add all companies for super admin.
+    
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token_data = {
         "sub": user.username, 
         "role": user.role.value, 
         "user_id": user.id
     }
+    # We include the primary company_id in the token for backward compatibility, 
+    # but the frontend should use the selector if companies.length > 1
     if user.company_id is not None:
         token_data["company_id"] = user.company_id
 
@@ -164,12 +192,33 @@ def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2Passw
         data=token_data, 
         expires_delta=access_token_expires
     )
+    
     return {
         "access_token": access_token, 
         "token_type": "bearer",
         "role": user.role.value,
-        "company_id": user.company_id
+        "company_id": user.company_id,
+        "companies": [CompanyResponse.model_validate(c) for c in associated_companies]
     }
+
+@router.get("/me/companies", response_model=List[CompanyResponse])
+def get_my_companies(db: Session = Depends(get_db), claims: dict = Depends(require_partner_role)):
+    """Fetch all companies associated with the current user."""
+    user_id = claims.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    associated_companies = []
+    if user.company_id:
+        c = db.query(Company).filter(Company.id == user.company_id).first()
+        if c: associated_companies.append(c)
+        
+    shares = db.query(PartnerShare).filter(PartnerShare.user_id == user.id).all()
+    share_company_ids = [s.company_id for s in shares if s.company_id and s.company_id != user.company_id]
+    if share_company_ids:
+        c_list = db.query(Company).filter(Company.id.in_(share_company_ids)).all()
+        associated_companies.extend(c_list)
+        
+    return associated_companies
 
 @router.get("/me", response_model=UserResponse)
 def read_users_me(db: Session = Depends(get_db), claims: dict = Depends(require_partner_role)):
@@ -231,13 +280,14 @@ def change_own_password(
 
 @router.post("/admin/reset-password")
 def admin_reset_password(
+    request: Request,
     body: AdminPasswordResetRequest,
     db: Session = Depends(get_db),
     claims: dict = Depends(require_admin_role)
 ):
     """Admin or Super Admin resets a user's password."""
     admin_role = claims.get("role")
-    admin_company_id = claims.get("company_id")
+    admin_company_id = get_current_company_id(request, claims)
     
     target_user = db.query(User).filter(User.id == body.user_id).first()
     if not target_user:

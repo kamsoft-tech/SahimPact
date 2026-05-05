@@ -11,10 +11,16 @@ router = APIRouter()
 
 @router.get("/settings", response_model=GlobalSettingsResponse)
 def get_settings(db: Session = Depends(get_db), company_id: Optional[int] = Depends(get_current_company_id)):
-    query = db.query(GlobalSettings)
-    if company_id:
-        query = query.filter(GlobalSettings.company_id == company_id)
-    settings = query.first()
+    if not company_id:
+        # Return generic system defaults if no company context
+        return GlobalSettings(
+            charity_percentage=0.06,
+            currency_symbol="£",
+            primary_color="#2EDEA4",
+            secondary_color="#F59E0B"
+        )
+
+    settings = db.query(GlobalSettings).filter(GlobalSettings.company_id == company_id).first()
     if not settings:
         # Create default settings if none exist
         settings = GlobalSettings(

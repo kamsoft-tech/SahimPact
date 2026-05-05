@@ -145,29 +145,34 @@ def get_charity_payouts(
     company_id: Optional[int] = Depends(get_current_company_id)
 ):
     """List all transactions that debited the Charity Reserve."""
-    from app.services.distribution_service import ensure_system_accounts
-    if not company_id:
-        return []
-    _, _, charity_acc = ensure_system_accounts(db, company_id)
+    # Find all relevant accounts
+    acc_query = db.query(Account).filter(Account.name == "Global Charity Reserve", Account.type == AccountTypeEnum.LIABILITY)
+    if company_id:
+        acc_query = acc_query.filter(Account.company_id == company_id)
     
+    charity_accounts = acc_query.all()
+    if not charity_accounts:
+        return []
+    
+    acc_ids = [a.id for a in charity_accounts]
+    
+    # Find all transactions that debited these accounts
     query = db.query(Transaction).join(JournalEntry, Transaction.id == JournalEntry.transaction_id).filter(
-        JournalEntry.account_id == charity_acc.id,
+        JournalEntry.account_id.in_(acc_ids),
         JournalEntry.type == EntryTypeEnum.DEBIT
     )
     
     if company_id is not None:
         query = query.filter(Transaction.company_id == company_id)
-    else:
-        query = query.filter(Transaction.company_id == None)
         
-    payouts = query.order_by(Transaction.date.desc()).all()
+    payouts = query.order_by(Transaction.date.desc()).distinct().all()
     
     return [
         {
             "id": p.id,
             "date": p.date.strftime("%Y-%m-%d") if p.date else "",
             "description": p.description.replace("Charity Payout: ", "") if p.description.startswith("Charity Payout: ") else p.description,
-            "amount": next((e.amount for e in p.entries if e.account_id == charity_acc.id and e.type == EntryTypeEnum.DEBIT), 0.0)
+            "amount": sum(e.amount for e in p.entries if e.account_id in acc_ids and e.type == EntryTypeEnum.DEBIT)
         }
         for p in payouts
     ]

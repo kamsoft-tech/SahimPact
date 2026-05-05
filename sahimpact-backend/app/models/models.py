@@ -41,7 +41,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True) # Nullable for super admin initially
-    username = Column(String, index=True, nullable=False) 
+    username = Column(String, unique=True, index=True, nullable=False) 
     full_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(RoleEnum), default=RoleEnum.PARTNER)
@@ -74,7 +74,7 @@ class PartnerShare(Base):
     __tablename__ = "partner_shares"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     capital_share_fixed = Column(Float, default=0.0) # Amount
     labor_share_variable = Column(Float, default=0.0) # Percentage or Hours Placeholder

@@ -1,4 +1,4 @@
-$zipFile = "iyi_pl_deploy.zip"
+$zipFile = "sahimpact_deploy.zip"
 if (Test-Path $zipFile) { Remove-Item $zipFile }
 
 $stageDir = "stage_deploy"

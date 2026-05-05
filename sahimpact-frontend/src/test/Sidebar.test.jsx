@@ -18,7 +18,12 @@ vi.mock('../context/NotificationContext', () => ({
     useNotification: () => ({ showNotification: vi.fn() })
 }));
 
+vi.mock('../context/BrandingContext', () => ({
+    useBranding: vi.fn()
+}));
+
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 import Sidebar from '../components/Sidebar';
 
 const renderSidebar = (role = 'PARTNER', companyId = '1', companyData = null) => {
@@ -33,6 +38,11 @@ const renderSidebar = (role = 'PARTNER', companyId = '1', companyData = null) =>
     if (!companyData) {
         companyData = { name: 'Test Company', logo_url: null };
     }
+
+    vi.mocked(useBranding).mockReturnValue({
+        logo_url: companyData.logo_url,
+        company_name: companyData.name
+    });
 
     axios.get = vi.fn().mockResolvedValue({
         data: companyData
@@ -62,14 +72,15 @@ describe('Sidebar Component', () => {
     it('renders navigation links for COMPANY_ADMIN', async () => {
         renderSidebar('COMPANY_ADMIN');
         await waitFor(() => {
-            expect(screen.getByText(/config/i)).toBeTruthy();
+            // "System Nexus" is the new name for Config
+            expect(screen.getByText(/system nexus/i)).toBeTruthy();
         });
     });
 
     it('renders navigation links for SUPER_ADMIN', async () => {
         renderSidebar('SUPER_ADMIN', null);
         await waitFor(() => {
-            expect(screen.getByText(/config/i)).toBeTruthy();
+            expect(screen.getByText(/system nexus/i)).toBeTruthy();
         });
     });
 
@@ -77,7 +88,8 @@ describe('Sidebar Component', () => {
         renderSidebar('COMPANY_ADMIN', '5', { name: 'Acme Corp', logo_url: null });
 
         await waitFor(() => {
-            expect(screen.getByText(/acme corp/i)).toBeTruthy();
+            const elements = screen.getAllByText(/acme corp/i);
+            expect(elements.length).toBeGreaterThan(0);
         });
     });
 

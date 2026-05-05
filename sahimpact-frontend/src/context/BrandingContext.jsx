@@ -81,7 +81,21 @@ export const BrandingProvider = ({ children }) => {
     };
 
     useEffect(() => {
+        // Initial setup - apply default branding early
+        applyBranding({
+            favicon_url: '/favicon.png',
+            primary_color: '#94d4ad',
+            secondary_color: '#bfc1ff'
+        });
+        
         refreshBranding();
+        
+        // Listen for company switches to re-fetch branding
+        const handleSwitch = () => {
+            refreshBranding();
+        };
+        window.addEventListener('company-switched', handleSwitch);
+        return () => window.removeEventListener('company-switched', handleSwitch);
     }, [role]);
 
     return (

@@ -4,6 +4,106 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 import { useBranding } from '../context/BrandingContext';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { 
+    Palette, 
+    Banknote, 
+    Building2, 
+    Users, 
+    Trash2, 
+    AlertTriangle, 
+    History, 
+    RotateCcw, 
+    Plus, 
+    MoreVertical, 
+    Settings2,
+    ShieldAlert,
+    ExternalLink,
+    KeyRound,
+    UserPlus,
+    RefreshCw,
+    Loader2
+} from "lucide-react";
+
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+
+import { Button } from "@/components/ui/button";
+import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const settingsSchema = z.object({
+    primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+    secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+    logo_url: z.string().url().or(z.string().length(0)),
+    favicon_url: z.string().url().or(z.string().length(0)),
+    currency_symbol: z.string().min(1, "Required"),
+    charity_percentage: z.number().min(0).max(1),
+    partnership_mode: z.string(),
+    labour_share_mode: z.string(),
+    capital_pool_percentage: z.number().min(0).max(1),
+    labour_pool_percentage: z.number().min(0).max(1),
+    contingency_pot_minimum: z.number().min(0),
+    company_name: z.string().optional(),
+});
+
+const companySchema = z.object({
+    name: z.string().min(2, "Company name must be at least 2 characters"),
+    admin_username: z.string().min(3, "Username must be at least 3 characters"),
+    admin_password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const resetPasswordSchema = z.object({
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const newUserSchema = z.object({
+    username: z.string().min(3, "Username must be at least 3 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+});
 
 const SystemConfig = () => {
     const { showNotification } = useNotification();
@@ -17,6 +117,7 @@ const SystemConfig = () => {
     
     const [activeTab, setActiveTab] = useState(initialTab);
     const [isLoading, setIsLoading] = useState(false);
+    const [companies, setCompanies] = useState([]);
 
     useEffect(() => {
         const tab = new URLSearchParams(location.search).get('tab');
@@ -45,26 +146,40 @@ const SystemConfig = () => {
         company_name: ''
     });
 
-    // Company Management State
-    const [companies, setCompanies] = useState([]);
-    const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-    const [newCompany, setNewCompany] = useState({ name: '', admin_username: '', admin_password: '' });
-    
-    // Reset Password State
-    const [resetPasswordModal, setResetPasswordModal] = useState({ isOpen: false, userId: null, username: '', newPassword: '' });
+    // Forms
+    const settingsForm = useForm({
+        resolver: zodResolver(settingsSchema),
+        defaultValues: settings
+    });
 
-    // Manage Users State
+    const companyForm = useForm({
+        resolver: zodResolver(companySchema),
+        defaultValues: { name: '', admin_username: '', admin_password: '' }
+    });
+
+    const resetPasswordForm = useForm({
+        resolver: zodResolver(resetPasswordSchema),
+        defaultValues: { newPassword: '' }
+    });
+
+    const newUserForm = useForm({
+        resolver: zodResolver(newUserSchema),
+        defaultValues: { username: '', password: '' }
+    });
+
+    const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+    const [resetPasswordModal, setResetPasswordModal] = useState({ isOpen: false, userId: null, username: '' });
     const [manageUsersModal, setManageUsersModal] = useState({ 
         isOpen: false, 
         companyId: null, 
         companyName: '', 
         users: [],
-        orphans: [], // Available orphans to add
-        newUsername: '', 
-        newPassword: '',
         showOrphanList: false
     });
 
+    const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, companyId: null, companyName: '' });
+    const [wipeConfirm, setWipeConfirm] = useState(false);
+    const [userDeactivateConfirm, setUserDeactivateConfirm] = useState({ isOpen: false, userId: null, username: '' });
     const [orphanedPartners, setOrphanedPartners] = useState([]);
 
 
@@ -94,7 +209,9 @@ const SystemConfig = () => {
                 }
             }
 
-            setSettings({ ...settingsRes.data, company_name: companyName });
+            const fetchedSettings = { ...settingsRes.data, company_name: companyName };
+            setSettings(fetchedSettings);
+            settingsForm.reset(fetchedSettings);
             setPendingAgreement(pendingRes.data);
             
             if (settingsRes.data.primary_color) document.documentElement.style.setProperty('--primary-brand', settingsRes.data.primary_color);
@@ -122,15 +239,15 @@ const SystemConfig = () => {
         }
     };
 
-    const handleSaveSettings = async () => {
+    const onSettingsSubmit = async (values) => {
         setIsLoading(true);
         try {
-            await axios.put('/api/settings', settings);
+            await axios.put('/api/settings', values);
             
-            if (role === 'COMPANY_ADMIN' && settings.company_name) {
+            if (role === 'COMPANY_ADMIN' && values.company_name) {
                 const companyId = sessionStorage.getItem('company_id');
                 if (companyId && companyId !== 'null') {
-                    await axios.put(`/api/companies/${companyId}`, { name: settings.company_name });
+                    await axios.put(`/api/companies/${companyId}`, { name: values.company_name });
                 }
             }
 
@@ -144,23 +261,22 @@ const SystemConfig = () => {
         }
     };
 
-    const handleCreateCompany = async (e) => {
-        e.preventDefault();
+    const onCompanySubmit = async (values) => {
         setIsLoading(true);
         try {
             // 1. Create Company
-            const companyRes = await axios.post('/api/companies', { name: newCompany.name });
+            const companyRes = await axios.post('/api/companies', { name: values.name });
             const companyId = companyRes.data.id;
 
             // 2. Create Admin
             await axios.post(`/api/companies/${companyId}/admin`, {
-                username: newCompany.admin_username,
-                password: newCompany.admin_password
+                username: values.admin_username,
+                password: values.admin_password
             });
 
-            showNotification(`Company ${newCompany.name} created successfully!`, "success");
+            showNotification(`Company ${values.name} created successfully!`, "success");
             setIsCompanyModalOpen(false);
-            setNewCompany({ name: '', admin_username: '', admin_password: '' });
+            companyForm.reset();
             fetchCompanies();
         } catch (error) {
             showNotification(error.response?.data?.detail || "Failed to create company", "error");
@@ -184,11 +300,9 @@ const SystemConfig = () => {
             companyId, 
             companyName, 
             users: [], 
-            orphans: orphanedPartners,
-            newUsername: '', 
-            newPassword: '',
             showOrphanList: false
         });
+        newUserForm.reset();
         fetchCompanyUsers(companyId);
     };
 
@@ -202,11 +316,12 @@ const SystemConfig = () => {
         }
     };
 
-    const handleHardDeleteCompany = async (companyId, companyName) => {
-        if (!window.confirm(`WARNING: This will PERMANENTLY delete ${companyName} and ALL associated data (transactions, accounts, users). This action cannot be undone. Are you sure?`)) {
-            return;
-        }
+    const handleHardDeleteCompany = (companyId, companyName) => {
+        setDeleteConfirm({ isOpen: true, companyId, companyName });
+    };
 
+    const executeHardDeleteCompany = async () => {
+        const { companyId, companyName } = deleteConfirm;
         try {
             await axios.delete(`/api/companies/${companyId}`);
             showNotification(`${companyName} and all its data have been purged.`, "success");
@@ -233,16 +348,11 @@ const SystemConfig = () => {
         }
     };
 
-    const handleSystemWipe = async () => {
-        const confirm1 = window.confirm("🚨 CRITICAL WARNING: You are about to PERMANENTLY WIPE ALL SYSTEM DATA. This includes all companies, users, transactions, and reports. Only your account will remain. Are you absolutely sure?");
-        if (!confirm1) return;
+    const handleSystemWipe = () => {
+        setWipeConfirm(true);
+    };
 
-        const confirm2 = window.prompt("Type 'PURGE' to confirm this destructive action:");
-        if (confirm2 !== 'PURGE') {
-            showNotification("Wipe cancelled. Confirmation text mismatch.", "error");
-            return;
-        }
-
+    const executeSystemWipe = async () => {
         setIsLoading(true);
         try {
             await axios.post('/api/admin/system-wipe');
@@ -259,23 +369,17 @@ const SystemConfig = () => {
         }
     };
 
-    const handleCreateAdmin = async (e) => {
-        e.preventDefault();
-        const { companyId, companyName, newUsername, newPassword } = manageUsersModal;
+    const onNewUserSubmit = async (values) => {
+        const { companyId, companyName } = manageUsersModal;
         
-        if (!newPassword || newPassword.length < 8) {
-            showNotification("Password must be at least 8 characters.", "error");
-            return;
-        }
-
         setIsLoading(true);
         try {
             await axios.post(`/api/companies/${companyId}/admin`, {
-                username: newUsername,
-                password: newPassword
+                username: values.username,
+                password: values.password
             });
             showNotification(`Admin account added to ${companyName} successfully.`, "success");
-            setManageUsersModal(prev => ({ ...prev, newUsername: '', newPassword: '' }));
+            newUserForm.reset();
             fetchCompanyUsers(companyId);
             fetchCompanies();
         } catch (error) {
@@ -296,11 +400,16 @@ const SystemConfig = () => {
         }
     };
 
-    const handleDeactivateUser = async (userId) => {
+    const handleDeactivateUser = (userId, username) => {
+        setUserDeactivateConfirm({ isOpen: true, userId, username });
+    };
+
+    const executeDeactivateUser = async () => {
+        const { userId } = userDeactivateConfirm;
         const { companyId } = manageUsersModal;
         try {
             await axios.delete(`/api/companies/${companyId}/users/${userId}`);
-            showNotification(`User deactivated successfully.`, "success");
+            showNotification(`User account deactivated.`, "success");
             fetchCompanyUsers(companyId);
         } catch (error) {
             showNotification(error.response?.data?.detail || "Failed to deactivate user", "error");
@@ -308,26 +417,20 @@ const SystemConfig = () => {
     };
 
     const openResetPasswordModal = (userId, username) => {
-
-        setResetPasswordModal({ isOpen: true, userId, username, newPassword: '' });
+        setResetPasswordModal({ isOpen: true, userId, username });
+        resetPasswordForm.reset({ newPassword: '' });
     };
 
-    const handleResetAdminPassword = async (e) => {
-        e.preventDefault();
-        const { userId, username, newPassword } = resetPasswordModal;
+    const onResetPasswordSubmit = async (values) => {
+        const { userId, username } = resetPasswordModal;
         
-        if (!newPassword || newPassword.length < 8) {
-            showNotification("Password must be at least 8 characters.", "error");
-            return;
-        }
-
         try {
             await axios.post('/api/admin/reset-password', {
                 user_id: userId,
-                new_password: newPassword
+                new_password: values.newPassword
             });
             showNotification(`Password for ${username} reset successfully.`, "success");
-            setResetPasswordModal({ isOpen: false, userId: null, username: '', newPassword: '' });
+            setResetPasswordModal({ isOpen: false, userId: null, username: '' });
         } catch (error) {
             showNotification("Failed to reset password", "error");
         }
@@ -335,748 +438,870 @@ const SystemConfig = () => {
 
 
     return (
-        <div className="flex flex-col gap-8 animate-slide-in pb-20 p-6 max-w-7xl mx-auto">
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                    <h1 className="text-3xl font-extrabold tracking-tight">System Configuration</h1>
-                    <p className="text-on-surface-variant">Manage global constants, branding, and enterprise entities.</p>
-                </div>
-
-                {role === 'SUPER_ADMIN' && (
-                    <div className="overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide">
-                        <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl w-max border border-outline-variant/20">
-                        <button 
-                            onClick={() => setActiveTab('global')}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'global' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'hover:bg-surface-container-high text-on-surface-variant'}`}
-                        >
-                            Global Settings
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('companies')}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'companies' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'hover:bg-surface-container-high text-on-surface-variant'}`}
-                        >
-                            Company Management
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('orphans')}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'orphans' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'hover:bg-surface-container-high text-on-surface-variant'}`}
-                        >
-                            Orphaned Partners
-                            {orphanedPartners.length > 0 && <span className="ml-2 bg-error text-on-error rounded-full px-1.5 py-0.5 text-[10px]">{orphanedPartners.length}</span>}
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('danger')}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'danger' ? 'bg-error text-on-error shadow-lg shadow-error/20' : 'hover:bg-surface-container-high text-on-surface-variant'}`}
-                        >
-                            Danger Zone
-                        </button>
-                        </div>
-                    </div>
-                )}
+        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+            <div className="border-b border-border-muted/30 pb-8">
+                <h1 className="text-4xl font-black text-text-main font-brand uppercase tracking-tighter">System Nexus</h1>
+                <p className="text-text-muted mt-2 font-medium">Enterprise governance, global constants, and multi-tenant oversight.</p>
             </div>
 
             {pendingAgreement && activeTab === 'global' && (
-                <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center justify-between animate-fade-in">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                            <span className="material-symbols-outlined">pending_actions</span>
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-primary">Pending Partnership Agreement</h4>
-                            <p className="text-xs text-on-surface-variant">There is an active proposal for financial parameters. New changes will overwrite the current proposal.</p>
-                        </div>
-                    </div>
-                    <a href="/partnerships?agreement=true" className="btn-ghost text-xs py-2 px-4">Review Agreement</a>
-                </div>
+                <Alert className="bg-primary/5 border-primary/20">
+                    <History className="h-4 w-4 text-primary" />
+                    <AlertTitle className="text-primary font-bold">Pending Partnership Agreement</AlertTitle>
+                    <AlertDescription className="flex items-center justify-between">
+                        <span>There is an active proposal for financial parameters. New changes will overwrite the current proposal.</span>
+                        <Button variant="outline" size="sm" asChild>
+                            <a href="/partnerships?agreement=true">Review Agreement</a>
+                        </Button>
+                    </AlertDescription>
+                </Alert>
             )}
 
-            {activeTab === 'global' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
-                    {/* Brand & Appearance */}
-                    <div className="card flex flex-col gap-6">
-                        <div className="flex items-center gap-2 text-primary">
-                            <span className="material-symbols-outlined">palette</span>
-                            <h3 className="font-bold">White-Labeling & Branding</h3>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            {role === 'COMPANY_ADMIN' && (
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-on-surface-variant">Company Name</label>
-                                    <input 
-                                        type="text" 
-                                        className="input-field w-full" 
-                                        value={settings.company_name || ''}
-                                        onChange={(e) => setSettings({...settings, company_name: e.target.value})}
-                                    />
-                                </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                {role === 'SUPER_ADMIN' && (
+                    <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-10 h-auto bg-bg-surface border border-border-muted/30 p-1 rounded-2xl shadow-sm">
+                        <TabsTrigger value="global" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
+                            <Settings2 className="h-3.5 w-3.5" /> Global Settings
+                        </TabsTrigger>
+                        <TabsTrigger value="companies" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
+                            <Building2 className="h-3.5 w-3.5" /> Enterprise Registry
+                        </TabsTrigger>
+                        <TabsTrigger value="orphans" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
+                            <Users className="h-3.5 w-3.5" /> Orphan Audit
+                            {orphanedPartners.length > 0 && (
+                                <Badge className="ml-2 bg-destructive text-destructive-foreground font-black text-[9px] px-1.5 h-4 min-w-[16px] flex items-center justify-center">
+                                    {orphanedPartners.length}
+                                </Badge>
                             )}
+                        </TabsTrigger>
+                        <TabsTrigger value="danger" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground transition-all">
+                            <ShieldAlert className="h-3.5 w-3.5" /> Critical Zone
+                        </TabsTrigger>
+                    </TabsList>
+                )}
 
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Primary Brand Color</label>
-                                <div className="flex gap-3">
-                                    <input 
-                                        type="color" 
-                                        className="w-12 h-10 rounded-lg border border-outline-variant bg-transparent cursor-pointer disabled:opacity-50" 
-                                        value={settings.primary_color || '#94d4ad'}
-                                        onChange={(e) => setSettings({...settings, primary_color: e.target.value})}
-                                        disabled={role === 'PARTNER'}
-                                    />
-                                    <input 
-                                        type="text" 
-                                        className="input-field flex-1 disabled:opacity-50" 
-                                        value={settings.primary_color || '#94d4ad'}
-                                        onChange={(e) => setSettings({...settings, primary_color: e.target.value})}
-                                        disabled={role === 'PARTNER'}
-                                    />
+                <TabsContent value="global" className="space-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Brand & Appearance */}
+                        <Card className="bg-bg-surface border-border-muted/50 shadow-sm overflow-hidden">
+                            <CardHeader className="bg-bg-base/30 border-b border-border-muted/10">
+                                <CardTitle className="flex items-center gap-3 text-xl font-black text-text-main font-brand uppercase tracking-tighter">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <Palette className="h-5 w-5" />
+                                    </div>
+                                    Visual Identity
+                                </CardTitle>
+                                <CardDescription className="text-text-muted font-medium">System-wide UI white-labeling and brand presence.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Form {...settingsForm}>
+                                    <form className="space-y-4">
+                                        {role === 'COMPANY_ADMIN' && (
+                                            <FormField
+                                                control={settingsForm.control}
+                                                name="company_name"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Company Name</FormLabel>
+                                                        <FormControl>
+                                                            <Input {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField
+                                                control={settingsForm.control}
+                                                name="primary_color"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Primary Color</FormLabel>
+                                                        <div className="flex gap-2">
+                                                            <FormControl>
+                                                                <Input type="color" className="w-12 p-1 h-10" {...field} disabled={role === 'PARTNER'} />
+                                                            </FormControl>
+                                                            <FormControl>
+                                                                <Input {...field} disabled={role === 'PARTNER'} />
+                                                            </FormControl>
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={settingsForm.control}
+                                                name="secondary_color"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Secondary Color</FormLabel>
+                                                        <div className="flex gap-2">
+                                                            <FormControl>
+                                                                <Input type="color" className="w-12 p-1 h-10" {...field} disabled={role === 'PARTNER'} />
+                                                            </FormControl>
+                                                            <FormControl>
+                                                                <Input {...field} disabled={role === 'PARTNER'} />
+                                                            </FormControl>
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="logo_url"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Logo URL</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="https://example.com/logo.png" {...field} disabled={role === 'PARTNER'} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="favicon_url"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <div className="flex justify-between items-center">
+                                                        <FormLabel>Favicon URL</FormLabel>
+                                                        <Button 
+                                                            type="button"
+                                                            variant="link" 
+                                                            size="sm" 
+                                                            className="h-auto p-0 text-[10px] uppercase font-bold"
+                                                            onClick={() => settingsForm.setValue('favicon_url', settingsForm.getValues('logo_url'))}
+                                                            disabled={!settingsForm.watch('logo_url') || role === 'PARTNER'}
+                                                        >
+                                                            Use Logo as Favicon
+                                                        </Button>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Input placeholder="https://example.com/favicon.ico" {...field} disabled={role === 'PARTNER'} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </form>
+                                </Form>
+                            </CardContent>
+                            <CardFooter className="bg-muted/50 rounded-b-lg border-t p-4 flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-lg bg-background flex items-center justify-center border overflow-hidden">
+                                    {settingsForm.watch('logo_url') ? (
+                                        <img src={settingsForm.watch('logo_url')} alt="Logo" className="w-full h-full object-contain p-1" />
+                                    ) : (
+                                        <Palette className="h-8 w-8 text-muted-foreground" />
+                                    )}
                                 </div>
-                            </div>
+                                <div>
+                                    <p className="text-sm font-bold">Brand Preview</p>
+                                    <div className="flex gap-2 mt-1">
+                                        <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: settingsForm.watch('primary_color') }}></div>
+                                        <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: settingsForm.watch('secondary_color') }}></div>
+                                    </div>
+                                </div>
+                            </CardFooter>
+                        </Card>
 
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Secondary Brand Color</label>
-                                <div className="flex gap-3">
-                                    <input 
-                                        type="color" 
-                                        className="w-12 h-10 rounded-lg border border-outline-variant bg-transparent cursor-pointer disabled:opacity-50" 
-                                        value={settings.secondary_color || '#bfc1ff'}
-                                        onChange={(e) => setSettings({...settings, secondary_color: e.target.value})}
-                                        disabled={role === 'PARTNER'}
-                                    />
-                                    <input 
-                                        type="text" 
-                                        className="input-field flex-1 disabled:opacity-50" 
-                                        value={settings.secondary_color || '#bfc1ff'}
-                                        onChange={(e) => setSettings({...settings, secondary_color: e.target.value})}
-                                        disabled={role === 'PARTNER'}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Logo URL</label>
-                                <input 
-                                    type="text" 
-                                    className="input-field w-full disabled:opacity-50" 
-                                    placeholder="https://example.com/logo.png"
-                                    value={settings.logo_url || ''}
-                                    onChange={(e) => setSettings({...settings, logo_url: e.target.value})}
-                                    disabled={role === 'PARTNER'}
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-sm font-bold text-on-surface-variant">Favicon URL</label>
-                                    <button 
-                                        type="button"
-                                        onClick={() => setSettings({...settings, favicon_url: settings.logo_url})}
-                                        className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest"
-                                        disabled={!settings.logo_url}
-                                    >
-                                        Use Logo as Favicon
-                                    </button>
-                                </div>
-                                <input 
-                                    type="text" 
-                                    className="input-field w-full disabled:opacity-50" 
-                                    placeholder="https://example.com/favicon.ico"
-                                    value={settings.favicon_url || ''}
-                                    onChange={(e) => setSettings({...settings, favicon_url: e.target.value})}
-                                    disabled={role === 'PARTNER'}
-                                />
-                            </div>
-                        </div>
-                        
-                        <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl overflow-hidden border border-primary/20">
-                                {settings.logo_url ? <img src={settings.logo_url} alt="Logo" className="w-full h-full object-contain p-1" /> : settings.primary_color?.charAt(1).toUpperCase()}
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold">Brand Preview</p>
-                                <p className="text-xs text-on-surface-variant mb-2">Interface will adapt to these colors.</p>
-                                <div className="flex gap-2">
-                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: settings.primary_color }}></div>
-                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: settings.secondary_color }}></div>
-                                </div>
-                            </div>
-                        </div>
+                        {/* Financial Parameters */}
+                        <Card className="bg-bg-surface border-border-muted/50 shadow-sm overflow-hidden">
+                            <CardHeader className="bg-bg-base/30 border-b border-border-muted/10">
+                                <CardTitle className="flex items-center gap-3 text-xl font-black text-text-main font-brand uppercase tracking-tighter">
+                                    <div className="p-2 bg-secondary/10 rounded-lg text-secondary">
+                                        <Banknote className="h-5 w-5" />
+                                    </div>
+                                    Economic Constants
+                                </CardTitle>
+                                <CardDescription className="text-text-muted font-medium">Core algorithms governing wealth distribution.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Form {...settingsForm}>
+                                    <form className="grid grid-cols-2 gap-4">
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="currency_symbol"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Currency Symbol</FormLabel>
+                                                    <FormControl>
+                                                        <Input className="font-bold text-center text-xl" {...field} disabled={role === 'PARTNER'} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="charity_percentage"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Global Charity %</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                className="pr-8" 
+                                                                value={Math.round(field.value * 10000) / 100}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
+                                                                disabled={role === 'PARTNER'} 
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="capital_pool_percentage"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Capital Pool %</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                className="pr-8" 
+                                                                value={Math.round(field.value * 10000) / 100}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
+                                                                disabled={role === 'PARTNER'} 
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="labour_pool_percentage"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Labour Pool %</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                className="pr-8" 
+                                                                value={Math.round(field.value * 10000) / 100}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) / 100)}
+                                                                disabled={role === 'PARTNER'} 
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="partnership_mode"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Partnership Mode</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={role === 'PARTNER'}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select mode" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="both">Both (Capital & Labour)</SelectItem>
+                                                            <SelectItem value="capital_only">Capital Only</SelectItem>
+                                                            <SelectItem value="labour_only">Labour Only</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="labour_share_mode"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Labour Share Mode</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={role === 'PARTNER'}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select mode" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="time">Time Logged (Dynamic)</SelectItem>
+                                                            <SelectItem value="fixed">Fixed Percentage</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="contingency_pot_minimum"
+                                            render={({ field }) => (
+                                                <FormItem className="col-span-2">
+                                                    <FormLabel>Contingency Pot Minimum</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">
+                                                                {settingsForm.watch('currency_symbol')}
+                                                            </span>
+                                                            <Input type="number" className="pl-8" {...field} disabled={role === 'PARTNER'} />
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormDescription>
+                                                        Current: {new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(field.value).replace('£', settingsForm.watch('currency_symbol'))}
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </form>
+                                </Form>
+                            </CardContent>
+                        </Card>
                     </div>
 
-                    {/* Financial Constants */}
-                    <div className="card flex flex-col gap-6">
-                        <div className="flex items-center gap-2 text-secondary">
-                            <span className="material-symbols-outlined">account_balance</span>
-                            <h3 className="font-bold">Financial Parameters</h3>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Currency Symbol</label>
-                                <input 
-                                    type="text" 
-                                    className="input-field w-full text-xl font-bold disabled:opacity-50" 
-                                    value={settings.currency_symbol}
-                                    onChange={(e) => setSettings({...settings, currency_symbol: e.target.value})}
-                                    disabled={role === 'PARTNER'}
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Global Charity %</label>
-                                <div className="relative">
-                                    <input 
-                                        type="number" 
-                                        step="0.01" 
-                                        className="input-field w-full pr-10 disabled:opacity-50" 
-                                        value={Math.round(settings.charity_percentage * 10000) / 100}
-                                        onChange={(e) => setSettings({...settings, charity_percentage: parseFloat(e.target.value) / 100})}
-                                        disabled={role === 'PARTNER'}
-                                    />
-                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-on-surface-variant">%</span>
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Capital Pool %</label>
-                                <input 
-                                    type="number" 
-                                    step="0.01"
-                                    className="input-field w-full disabled:opacity-50" 
-                                    value={Math.round(settings.capital_pool_percentage * 10000) / 100}
-                                    onChange={(e) => setSettings({...settings, capital_pool_percentage: parseFloat(e.target.value) / 100})}
-                                    disabled={role === 'PARTNER'}
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Labour Pool %</label>
-                                <input 
-                                    type="number" 
-                                    step="0.01"
-                                    className="input-field w-full disabled:opacity-50" 
-                                    value={Math.round(settings.labour_pool_percentage * 10000) / 100}
-                                    onChange={(e) => setSettings({...settings, labour_pool_percentage: parseFloat(e.target.value) / 100})}
-                                    disabled={role === 'PARTNER'}
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Partnership Mode</label>
-                                <select 
-                                    className="input-field w-full disabled:opacity-50" 
-                                    value={settings.partnership_mode}
-                                    onChange={(e) => setSettings({...settings, partnership_mode: e.target.value})}
-                                    disabled={role === 'PARTNER'}
-                                >
-                                    <option value="both">Both (Capital & Labour)</option>
-                                    <option value="capital_only">Capital Only</option>
-                                    <option value="labour_only">Labour Only</option>
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Labour Share Mode</label>
-                                <select 
-                                    className="input-field w-full disabled:opacity-50" 
-                                    value={settings.labour_share_mode}
-                                    onChange={(e) => setSettings({...settings, labour_share_mode: e.target.value})}
-                                    disabled={role === 'PARTNER'}
-                                >
-                                    <option value="time">Time Logged (Dynamic)</option>
-                                    <option value="fixed">Fixed Percentage</option>
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-2 sm:col-span-2">
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-on-surface-variant">{settings.currency_symbol}</span>
-                                    <input 
-                                        type="number" 
-                                        className="input-field w-full pl-10 disabled:opacity-50" 
-                                        value={settings.contingency_pot_minimum}
-                                        onChange={(e) => setSettings({...settings, contingency_pot_minimum: parseFloat(e.target.value)})}
-                                        disabled={role === 'PARTNER'}
-                                    />
-                                </div>
-                                <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mt-1">
-                                    Current: {new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(settings.contingency_pot_minimum).replace('£', settings.currency_symbol)}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
                     {role !== 'PARTNER' && (
-                        <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[60]">
-                            <button 
-                                onClick={handleSaveSettings} 
+                        <div className="flex justify-end pt-4">
+                            <Button 
+                                size="lg" 
+                                className="shadow-2xl shadow-primary/30 h-14 px-8 bg-primary hover:bg-primary/90 text-on-primary font-black uppercase tracking-widest text-sm rounded-xl" 
+                                onClick={settingsForm.handleSubmit(onSettingsSubmit)}
                                 disabled={isLoading}
-                                className="btn-primary px-6 py-4 md:px-8 md:py-4 shadow-2xl shadow-primary/40 text-sm md:text-lg flex items-center gap-3 rounded-2xl"
                             >
-                                <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>
-                                    {isLoading ? 'sync' : 'history_edu'}
-                                </span>
-                                <span>{isLoading ? 'Staging...' : 'Propose Changes'}</span>
-                            </button>
+                                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <History className="mr-2 h-5 w-5" />}
+                                {isLoading ? 'Staging...' : 'Propose Governance Change'}
+                            </Button>
                         </div>
                     )}
-                </div>
-            )}
+                </TabsContent>
 
-            {activeTab === 'companies' && (
-                <div className="flex flex-col gap-6 animate-fade-in">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold">Registered Companies</h2>
-                        <button 
-                            onClick={() => setIsCompanyModalOpen(true)}
-                            className="btn-secondary px-6 py-2 text-sm"
-                        >
-                            <span className="material-symbols-outlined">add</span>
-                            New Company
-                        </button>
+                <TabsContent value="companies" className="space-y-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-bg-surface p-6 rounded-2xl border border-border-muted/30 shadow-sm mb-6">
+                        <div>
+                            <h2 className="text-2xl font-black text-text-main font-brand uppercase tracking-tighter">Enterprise Registry</h2>
+                            <p className="text-text-muted text-xs font-medium">Multi-tenant management and data isolation controls.</p>
+                        </div>
+                        <Button onClick={() => setIsCompanyModalOpen(true)} className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl h-12 px-6 shadow-lg shadow-primary/20 w-full sm:w-auto">
+                            <Plus className="mr-2 h-5 w-5" /> New Enterprise
+                        </Button>
                     </div>
 
-                    <div className="card overflow-hidden !p-0 border-outline-variant/20 shadow-sm">
-                        <div className="overflow-x-auto hidden sm:block">
-                            <table className="min-w-[800px] w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-surface-container-high border-b border-outline-variant/30">
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-on-surface-variant">Company Name</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-on-surface-variant">Status</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-on-surface-variant">Created</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-on-surface-variant">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-outline-variant/10">
-                                {companies.map((company) => (
-                                    <tr key={company.id} className="hover:bg-surface-container-low transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded bg-secondary/10 text-secondary flex items-center justify-center font-bold">
-                                                    {company.name.charAt(0)}
+                    <Card className="bg-bg-surface border-border-muted/50 overflow-hidden shadow-sm">
+                        {/* Desktop View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <Table>
+                                <TableHeader className="bg-bg-base/50">
+                                    <TableRow className="hover:bg-transparent border-border-muted/10">
+                                        <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted">Company Name</TableHead>
+                                        <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted">Status</TableHead>
+                                        <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted">Created</TableHead>
+                                        <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-text-muted text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {companies.map((company) => (
+                                        <TableRow key={company.id} className="hover:bg-primary/[0.02] border-border-muted/10 transition-colors group">
+                                            <TableCell className="px-6 py-5 font-bold">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded bg-secondary/10 text-secondary flex items-center justify-center text-xs font-black">
+                                                        {company.name.charAt(0)}
+                                                    </div>
+                                                    {company.name}
                                                 </div>
-                                                <span className="font-bold">{company.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${company.is_active ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}`}>
-                                                {company.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-on-surface-variant">
-                                            {new Date(company.created_at).toLocaleDateString()}
-                                        </td>
-                                                <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button 
-                                                    className={`p-2 rounded-lg hover:bg-surface-container-high transition-all ${company.is_active ? 'text-primary' : 'text-on-surface-variant'}`}
-                                                    title={company.is_active ? "Soft Delete (Deactivate)" : "Reactivate"}
-                                                    onClick={() => handleToggleCompanyActive(company.id)}
-                                                >
-                                                    <span className="material-symbols-outlined text-sm">{company.is_active ? 'toggle_on' : 'toggle_off'}</span>
-                                                </button>
-                                                <button 
-                                                    className="p-2 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-all"
-                                                    title="Hard Delete (Purge Data)"
-                                                    onClick={() => handleHardDeleteCompany(company.id, company.name)}
-                                                >
-                                                    <span className="material-symbols-outlined text-sm">delete_forever</span>
-                                                </button>
-                                                <div className="w-[1px] h-4 bg-outline-variant/30 self-center mx-1"></div>
-                                                <button 
-                                                    className="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-all"
-                                                    title="Manage Users"
-                                                    onClick={() => openManageUsersModal(company.id, company.name)}
-                                                >
-                                                    <span className="material-symbols-outlined text-sm">manage_accounts</span>
-                                                </button>
-                                                <button 
-                                                    className="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-all"
-                                                    title="Reset Admin Password"
-                                                    onClick={() => openResetPasswordModal(company.admin_id, company.admin_username || (company.name + ' Admin'))}
-                                                >
-                                                    <span className="material-symbols-outlined text-sm">lock_reset</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {companies.length === 0 && (
-                                    <tr>
-                                        <td colSpan="4" className="px-6 py-12 text-center text-on-surface-variant">
-                                            No companies found. Create one to get started.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                            </TableCell>
+                                            <TableCell className="px-6 py-5">
+                                                <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${company.is_active ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
+                                                    {company.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="px-6 py-5 text-muted-foreground text-sm font-medium">
+                                                {new Date(company.created_at).toLocaleDateString()}
+                                            </TableCell>
+                                            <TableCell className="px-6 py-5 text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        title={company.is_active ? "Deactivate" : "Reactivate"}
+                                                        onClick={() => handleToggleCompanyActive(company.id)}
+                                                        className={cn("w-9 h-9 rounded-xl", company.is_active ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-bg-base")}
+                                                    >
+                                                        <RotateCcw className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        title="Purge Data"
+                                                        onClick={() => handleHardDeleteCompany(company.id, company.name)}
+                                                        className="w-9 h-9 rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        title="Manage Users"
+                                                        onClick={() => openManageUsersModal(company.id, company.name)}
+                                                        className="w-9 h-9 rounded-xl hover:bg-primary/10 hover:text-primary"
+                                                    >
+                                                        <Users className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        title="Reset Password"
+                                                        onClick={() => openResetPasswordModal(company.admin_id, company.admin_username || (company.name + ' Admin'))}
+                                                        className="w-9 h-9 rounded-xl hover:bg-primary/10 hover:text-primary"
+                                                    >
+                                                        <KeyRound className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {companies.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground font-medium text-xs">
+                                                No companies found. Create one to get started.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
 
-                    {/* Mobile Company Cards */}
-                    <div className="flex flex-col divide-y divide-outline-variant/20 sm:hidden">
-                        {companies.map((company) => (
-                            <div key={company.id} className="p-5 flex flex-col gap-4 hover:bg-surface-container-low transition-colors">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded bg-secondary/10 text-secondary flex items-center justify-center font-bold">
-                                            {company.name.charAt(0)}
+                        {/* Mobile View */}
+                        <div className="md:hidden divide-y divide-border-muted/10">
+                            {companies.map((company) => (
+                                <div key={company.id} className="p-4 space-y-4">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center font-black">
+                                                {company.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <h3 className="text-sm font-black text-text-main">{company.name}</h3>
+                                                <p className="text-[10px] text-text-muted font-medium">Created {new Date(company.created_at).toLocaleDateString()}</p>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-black">{company.name}</span>
-                                            <span className="text-[10px] text-on-surface-variant font-bold">Created {new Date(company.created_at).toLocaleDateString()}</span>
-                                        </div>
+                                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${company.is_active ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
+                                            {company.is_active ? 'Active' : 'Inactive'}
+                                        </span>
                                     </div>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${company.is_active ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}`}>
-                                        {company.is_active ? 'Active' : 'Inactive'}
-                                    </span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => openManageUsersModal(company.id, company.name)}
+                                            className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10"
+                                        >
+                                            <Users className="w-3.5 h-3.5 mr-2" /> Users
+                                        </Button>
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => openResetPasswordModal(company.admin_id, company.admin_username || (company.name + ' Admin'))}
+                                            className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10"
+                                        >
+                                            <KeyRound className="w-3.5 h-3.5 mr-2" /> Password
+                                        </Button>
+                                        <Button 
+                                            variant={company.is_active ? "secondary" : "default"}
+                                            size="sm" 
+                                            onClick={() => handleToggleCompanyActive(company.id)}
+                                            className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5 mr-2" /> {company.is_active ? 'Deactivate' : 'Activate'}
+                                        </Button>
+                                        <Button 
+                                            variant="destructive" 
+                                            size="sm" 
+                                            onClick={() => handleHardDeleteCompany(company.id, company.name)}
+                                            className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10 shadow-lg shadow-destructive/20"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Purge
+                                        </Button>
+                                    </div>
                                 </div>
-                                
-                                <div className="flex gap-2 justify-end mt-2">
-                                    <button 
-                                        className="p-2 rounded-xl bg-surface-container text-on-surface-variant"
-                                        onClick={() => openManageUsersModal(company.id, company.name)}
-                                        title="Manage Users"
-                                    >
-                                        <span className="material-symbols-outlined text-lg">manage_accounts</span>
-                                    </button>
-                                    <button 
-                                        className="p-2 rounded-xl bg-surface-container text-on-surface-variant"
-                                        onClick={() => openResetPasswordModal(company.admin_id, company.admin_username || (company.name + ' Admin'))}
-                                        title="Reset Password"
-                                    >
-                                        <span className="material-symbols-outlined text-lg">lock_reset</span>
-                                    </button>
-                                    <button 
-                                        className={`p-2 rounded-xl ${company.is_active ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}
-                                        onClick={() => handleToggleCompanyActive(company.id)}
-                                    >
-                                        <span className="material-symbols-outlined text-lg">{company.is_active ? 'toggle_on' : 'toggle_off'}</span>
-                                    </button>
-                                    <button 
-                                        className="p-2 rounded-xl bg-error/10 text-error"
-                                        onClick={() => handleHardDeleteCompany(company.id, company.name)}
-                                    >
-                                        <span className="material-symbols-outlined text-lg">delete_forever</span>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                        {companies.length === 0 && (
-                            <div className="p-12 text-center text-on-surface-variant italic">
-                                No companies found.
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+                            ))}
+                        </div>
+                    </Card>
+                </TabsContent>
 
-            {activeTab === 'orphans' && (
-                <div className="flex flex-col gap-6 animate-fade-in">
-                    <div className="flex flex-col gap-2">
-                        <h2 className="text-xl font-bold">Orphaned Partners</h2>
-                        <p className="text-sm text-on-surface-variant">Partners created without a company association or whose previous company was hard-deleted.</p>
+                <TabsContent value="orphans" className="space-y-8">
+                    <div className="flex flex-col gap-1 border-l-4 border-destructive pl-4 py-2">
+                        <h2 className="text-2xl font-black text-text-main font-brand uppercase tracking-tighter">Orphan Audit</h2>
+                        <p className="text-text-muted text-sm font-medium">Partners detected without a parent enterprise association.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {orphanedPartners.map(orphan => (
-                            <div key={orphan.id} className="card flex flex-col gap-4 border-dashed border-error/30 hover:border-error transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full bg-error/10 text-error flex items-center justify-center font-bold">
-                                        {orphan.username.charAt(0).toUpperCase()}
+                            <Card key={orphan.id} className="border-dashed">
+                                <CardHeader className="pb-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center font-bold text-xl">
+                                            {orphan.username.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-base">@{orphan.username}</CardTitle>
+                                            <CardDescription>{orphan.full_name || 'No full name'}</CardDescription>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="font-bold">@{orphan.username}</h4>
-                                        <p className="text-xs text-on-surface-variant">{orphan.full_name || 'No full name'}</p>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Link to Company</label>
+                                        <Select onValueChange={(val) => handleAdoptPartner(orphan.id, val)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a company..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {companies.map(c => (
+                                                    <SelectItem key={c.id} value={c.id.toString()}>
+                                                        {c.name} {!c.is_active && '(Inactive)'}
+                                                    </SelectItem>
+                                                ))}
+                                                {companies.length === 0 && <SelectItem disabled value="none">No companies available</SelectItem>}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-                                </div>
-                                <div className="flex flex-col gap-2 mt-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Link to Company</label>
-                                    <select 
-                                        className="input-field text-sm"
-                                        onChange={(e) => handleAdoptPartner(orphan.id, e.target.value)}
-                                        value=""
-                                    >
-                                        <option value="" disabled>Select a company...</option>
-                                        {companies.length > 0 ? (
-                                            companies.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name} {!c.is_active && '(Inactive)'}</option>
-                                            ))
-                                        ) : (
-                                            <option disabled>No companies available</option>
-                                        )}
-                                    </select>
-                                    {companies.length === 0 && (
-                                        <p className="text-[10px] text-error mt-1">Create a company first to link this partner.</p>
-                                    )}
-                                </div>
-                            </div>
+                                </CardContent>
+                            </Card>
                         ))}
                         {orphanedPartners.length === 0 && (
-                            <div className="col-span-full py-16 text-center card border-dashed">
-                                <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-2">person_check</span>
-                                <p className="text-on-surface-variant">No orphaned partners found. All partners are associated with companies.</p>
-                            </div>
+                            <Card className="col-span-full border-dashed p-12 text-center">
+                                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                <CardTitle className="text-muted-foreground">All clear!</CardTitle>
+                                <CardDescription>No orphaned partners found.</CardDescription>
+                            </Card>
                         )}
                     </div>
-                </div>
-            )}
+                </TabsContent>
 
-            {activeTab === 'danger' && role === 'SUPER_ADMIN' && (
-                <div className="flex flex-col gap-8 animate-fade-in">
-                    <div className="flex flex-col gap-2">
-                        <h2 className="text-xl font-bold text-error">Danger Zone</h2>
-                        <p className="text-sm text-on-surface-variant">Sensitive system-level destructive actions. Proceed with extreme caution.</p>
+                <TabsContent value="danger" className="space-y-8">
+                    <div className="flex flex-col gap-1 border-l-4 border-destructive pl-4 py-2">
+                        <h2 className="text-2xl font-black text-destructive font-brand uppercase tracking-tighter">Critical Zone</h2>
+                        <p className="text-text-muted text-sm font-medium">Destructive system-level actions. Execute with absolute caution.</p>
                     </div>
 
-                    <div className="card border-error/50 bg-error/5 flex flex-col gap-6">
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 rounded-xl bg-error/10 text-error">
-                                <span className="material-symbols-outlined text-3xl">terminal</span>
+                    <Card className="border-destructive/50 bg-destructive/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-destructive">
+                                <ShieldAlert className="h-5 w-5" /> System Reset (Production Wipe)
+                            </CardTitle>
+                            <CardDescription className="text-destructive/80">
+                                This will PERMANENTLY DELETE all enterprise records, transactions, partners, and reports. 
+                                Only your account remains.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardFooter className="bg-destructive/10 border-t border-destructive/20 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 text-destructive text-xs font-bold uppercase tracking-widest">
+                                <AlertTriangle className="h-4 w-4" /> This action cannot be undone
                             </div>
-                            <div className="flex-1">
-                                <h3 className="text-lg font-bold text-error mb-1">System Reset (Production Wipe)</h3>
-                                <p className="text-sm text-on-surface-variant leading-relaxed">
-                                    This action will <span className="font-bold">PERMANENTLY DELETE</span> all enterprise records, transaction histories, partners, and reports. 
-                                    Your Super Admin account will be the only data preserved. This is used to clear test data before a live onboarding.
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-error/10 rounded-xl border border-error/20 gap-4">
-                            <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-error">warning</span>
-                                <span className="text-xs font-bold uppercase tracking-widest text-error">This action cannot be undone</span>
-                            </div>
-                            <button 
-                                onClick={handleSystemWipe}
-                                disabled={isLoading}
-                                className="w-full sm:w-auto px-6 py-3 bg-error text-on-error rounded-xl font-bold hover:bg-error/90 transition-all shadow-lg shadow-error/20 disabled:opacity-50"
-                            >
+                            <Button variant="destructive" onClick={handleSystemWipe} disabled={isLoading}>
+                                {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
                                 {isLoading ? 'Wiping System...' : 'Wipe All System Data'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
-            {/* Create Company Modal */}
-            {isCompanyModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="card w-full max-w-lg shadow-2xl animate-scale-in">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">New Enterprise</h2>
-                            <button onClick={() => setIsCompanyModalOpen(false)} className="p-2 rounded-full hover:bg-surface-container-high transition-colors">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        <form onSubmit={handleCreateCompany} className="flex flex-col gap-6">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">Company Name</label>
-                                <input 
-                                    type="text" 
-                                    className="input-field" 
-                                    placeholder="Enter company name..."
-                                    value={newCompany.name}
-                                    onChange={(e) => setNewCompany({...newCompany, name: e.target.value})}
-                                    required
+            <Dialog open={isCompanyModalOpen} onOpenChange={setIsCompanyModalOpen}>
+                <DialogContent className="max-w-[95vw] sm:max-w-lg bg-bg-surface border-border-muted/50 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black text-text-main font-brand uppercase tracking-tighter">Register Enterprise</DialogTitle>
+                        <DialogDescription className="text-text-muted font-medium">Initialize a new isolated business entity and administrative authority.</DialogDescription>
+                    </DialogHeader>
+                    <Form {...companyForm}>
+                        <form onSubmit={companyForm.handleSubmit(onCompanySubmit)} className="space-y-4">
+                            <FormField
+                                control={companyForm.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Company Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Enter company name..." {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <div className="space-y-4 pt-4 border-t">
+                                <h4 className="text-xs font-black uppercase tracking-widest text-secondary">Primary Admin Account</h4>
+                                <FormField
+                                    control={companyForm.control}
+                                    name="admin_username"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Username</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Admin username" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={companyForm.control}
+                                    name="admin_password"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Initial Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" placeholder="At least 8 characters" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
                             </div>
-                            <hr className="border-outline-variant/30" />
-                            <div className="flex flex-col gap-4">
-                                <p className="text-xs font-black uppercase tracking-widest text-secondary">Primary Admin Account</p>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-on-surface-variant">Username</label>
-                                    <input 
-                                        type="text" 
-                                        className="input-field" 
-                                        placeholder="Admin username"
-                                        value={newCompany.admin_username}
-                                        onChange={(e) => setNewCompany({...newCompany, admin_username: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-on-surface-variant">Initial Password</label>
-                                    <input 
-                                        type="password" 
-                                        className="input-field" 
-                                        placeholder="At least 8 characters"
-                                        value={newCompany.admin_password}
-                                        onChange={(e) => setNewCompany({...newCompany, admin_password: e.target.value})}
-                                        required
-                                        minLength={8}
-                                    />
-                                </div>
-                            </div>
-                            <button type="submit" disabled={isLoading} className="btn-primary py-3">
-                                {isLoading ? 'Creating...' : 'Create Company & Admin'}
-                            </button>
+                            <DialogFooter>
+                                <Button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-on-primary font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-primary/20" disabled={isLoading}>
+                                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Authorize Enterprise Creation'}
+                                </Button>
+                            </DialogFooter>
                         </form>
-                    </div>
-                </div>
-            )}
+                    </Form>
+                </DialogContent>
+            </Dialog>
 
-            {/* Reset Password Modal */}
-            {resetPasswordModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="card w-full max-w-sm shadow-2xl animate-scale-in">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold">Reset Password</h2>
-                            <button onClick={() => setResetPasswordModal({ isOpen: false, userId: null, username: '', newPassword: '' })} className="p-2 rounded-full hover:bg-surface-container-high transition-colors">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        <p className="text-sm text-on-surface-variant mb-4">
-                            Enter a new password for <span className="font-bold text-on-surface">{resetPasswordModal.username}</span>.
-                        </p>
-                        <form onSubmit={handleResetAdminPassword} className="flex flex-col gap-4">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-on-surface-variant">New Password</label>
-                                <input 
-                                    type="password" 
-                                    className="input-field" 
-                                    placeholder="At least 8 characters"
-                                    value={resetPasswordModal.newPassword}
-                                    onChange={(e) => setResetPasswordModal({...resetPasswordModal, newPassword: e.target.value})}
-                                    required
-                                    minLength={8}
-                                />
-                            </div>
-                            <div className="flex gap-3 mt-2">
-                                <button type="button" onClick={() => setResetPasswordModal({ isOpen: false, userId: null, username: '', newPassword: '' })} className="btn-ghost flex-1">Cancel</button>
-                                <button type="submit" className="btn-primary flex-1">Save Password</button>
-                            </div>
+            <Dialog open={resetPasswordModal.isOpen} onOpenChange={(open) => !open && setResetPasswordModal(prev => ({...prev, isOpen: false}))}>
+                <DialogContent className="max-w-[95vw] sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Reset Password</DialogTitle>
+                        <DialogDescription>
+                            Enter a new password for <span className="font-bold text-foreground">{resetPasswordModal.username}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...resetPasswordForm}>
+                        <form onSubmit={resetPasswordForm.handleSubmit(onResetPasswordSubmit)} className="space-y-4">
+                            <FormField
+                                control={resetPasswordForm.control}
+                                name="newPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>New Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" placeholder="At least 8 characters" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <Button type="submit" className="w-full">Save Password</Button>
+                            </DialogFooter>
                         </form>
-                    </div>
-                </div>
-            )}
+                    </Form>
+                </DialogContent>
+            </Dialog>
 
-            {/* Manage Users Modal */}
-            {manageUsersModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="card w-full max-w-2xl shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold">Manage Users</h2>
-                            <button onClick={() => setManageUsersModal({ isOpen: false, companyId: null, companyName: '', users: [], newUsername: '', newPassword: '' })} className="p-2 rounded-full hover:bg-surface-container-high transition-colors">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        <p className="text-sm text-on-surface-variant mb-4">
-                            Managing users for <span className="font-bold text-on-surface">{manageUsersModal.companyName}</span>.
-                        </p>
-
-                        <div className="flex flex-col gap-4 mb-8">
+            <Dialog open={manageUsersModal.isOpen} onOpenChange={(open) => !open && setManageUsersModal(prev => ({...prev, isOpen: false}))}>
+                <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+                    <DialogHeader>
+                        <DialogTitle>Manage Users</DialogTitle>
+                        <DialogDescription>
+                            Managing users for <span className="font-bold text-foreground">{manageUsersModal.companyName}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-6">
+                        <div className="space-y-4">
                             <div className="flex justify-between items-center">
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-secondary">Existing Users</h3>
-                                <button 
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
                                     onClick={() => setManageUsersModal(prev => ({ ...prev, showOrphanList: !prev.showOrphanList }))}
-                                    className="btn-ghost py-1 px-3 text-xs flex items-center gap-2"
                                 >
-                                    <span className="material-symbols-outlined text-sm">{manageUsersModal.showOrphanList ? 'close' : 'person_add'}</span>
                                     {manageUsersModal.showOrphanList ? 'Close Orphan List' : 'Add Existing Partner'}
-                                </button>
+                                </Button>
                             </div>
 
                             {manageUsersModal.showOrphanList && (
-                                <div className="p-4 bg-surface-container-high rounded-xl border border-outline-variant/30 animate-fade-in mb-4">
+                                <Card className="bg-muted/50 p-4 border-dashed animate-in slide-in-from-top-2">
                                     <h4 className="text-xs font-bold mb-3">Available Orphaned Partners</h4>
                                     <div className="flex flex-wrap gap-2">
                                         {orphanedPartners.map(orphan => (
-                                            <button 
+                                            <Button 
                                                 key={orphan.id}
+                                                variant="secondary"
+                                                size="sm"
                                                 onClick={() => handleAdoptPartner(orphan.id, manageUsersModal.companyId)}
-                                                className="px-3 py-1.5 rounded-lg bg-surface border border-outline-variant/30 hover:border-primary hover:text-primary transition-all text-xs font-medium flex items-center gap-2"
+                                                className="text-xs"
                                             >
-                                                <span className="material-symbols-outlined text-sm">add</span>
-                                                {orphan.username}
-                                            </button>
+                                                <Plus className="mr-1 h-3 w-3" /> {orphan.username}
+                                            </Button>
                                         ))}
-                                        {orphanedPartners.length === 0 && <p className="text-xs text-on-surface-variant">No unassigned partners available.</p>}
+                                        {orphanedPartners.length === 0 && <p className="text-xs text-muted-foreground">No unassigned partners available.</p>}
                                     </div>
-                                </div>
+                                </Card>
                             )}
 
-                            <div className="border border-outline-variant/30 rounded-xl overflow-x-auto scrollbar-hide">
-                                <table className="w-full text-left min-w-[500px]">
-                                    <thead className="bg-surface-container-low">
-                                        <tr>
-                                            <th className="px-4 py-3 text-xs font-bold text-on-surface-variant">Username</th>
-                                            <th className="px-4 py-3 text-xs font-bold text-on-surface-variant">Role</th>
-                                            <th className="px-4 py-3 text-xs font-bold text-on-surface-variant">Status</th>
-                                            <th className="px-4 py-3 text-xs font-bold text-on-surface-variant text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-outline-variant/10">
-                                        {manageUsersModal.users.map(u => (
-                                            <tr key={u.id} className="hover:bg-surface-container-low/50 transition-colors">
-                                                <td className="px-4 py-3 font-medium whitespace-nowrap">{u.username}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${u.role === 'COMPANY_ADMIN' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}`}>
-                                                        {u.role === 'COMPANY_ADMIN' ? 'Admin' : 'Partner'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    {u.is_active ? (
-                                                        <span className="text-primary text-xs font-bold">Active</span>
-                                                    ) : (
-                                                        <span className="text-error text-xs font-bold">Deactivated</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                                                        {u.is_active && u.role === 'PARTNER' && (
-                                                            <button onClick={() => handleUpdateUserRole(u.id, 'COMPANY_ADMIN')} className="text-xs text-primary hover:underline font-bold">Promote to Admin</button>
-                                                        )}
-                                                        {u.is_active && u.role === 'COMPANY_ADMIN' && (
-                                                            <button onClick={() => handleUpdateUserRole(u.id, 'PARTNER')} className="text-xs text-secondary hover:underline font-bold">Demote to Partner</button>
-                                                        )}
-                                                        {u.is_active && (
-                                                            <button onClick={() => handleDeactivateUser(u.id)} className="text-xs text-error hover:underline font-bold ml-2">Deactivate</button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {manageUsersModal.users.length === 0 && (
-                                            <tr>
-                                                <td colSpan="4" className="px-4 py-8 text-center text-on-surface-variant">No users found.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
+                            <div className="border rounded-xl overflow-hidden">
+                                {/* Desktop User Table */}
+                                <div className="hidden sm:block">
+                                    <Table>
+                                        <TableHeader className="bg-bg-base/50">
+                                            <TableRow>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-text-muted">Username</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-text-muted">Role</TableHead>
+                                                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest text-text-muted">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {manageUsersModal.users.map(u => (
+                                                <TableRow key={u.id} className="border-border-muted/10">
+                                                    <TableCell className="font-bold text-sm text-text-main">{u.username}</TableCell>
+                                                    <TableCell>
+                                                        <Select defaultValue={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
+                                                            <SelectTrigger className="h-9 w-[150px] rounded-xl font-bold text-xs bg-bg-base">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="PARTNER" className="font-bold text-xs">Partner</SelectItem>
+                                                                <SelectItem value="COMPANY_ADMIN" className="font-bold text-xs">Company Admin</SelectItem>
+                                                                <SelectItem value="SUPER_ADMIN" className="font-bold text-xs text-primary">Super Admin</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="w-9 h-9 rounded-xl text-destructive hover:bg-destructive/10"
+                                                            onClick={() => handleDeactivateUser(u.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                {/* Mobile User List */}
+                                <div className="sm:hidden divide-y divide-border-muted/10">
+                                    {manageUsersModal.users.map(u => (
+                                        <div key={u.id} className="p-4 space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-black text-text-main">{u.username}</span>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="w-8 h-8 rounded-lg text-destructive"
+                                                    onClick={() => handleDeactivateUser(u.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            <Select defaultValue={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
+                                                <SelectTrigger className="h-10 w-full rounded-xl font-bold text-xs bg-bg-base">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="PARTNER" className="font-bold text-xs">Partner</SelectItem>
+                                                    <SelectItem value="COMPANY_ADMIN" className="font-bold text-xs">Company Admin</SelectItem>
+                                                    <SelectItem value="SUPER_ADMIN" className="font-bold text-xs text-primary">Super Admin</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
-                        <form onSubmit={handleCreateAdmin} className="flex flex-col gap-4 bg-surface-container p-4 rounded-xl border border-outline-variant/20">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Create New Admin</h3>
-                            <div className="flex flex-col md:flex-row gap-4">
-                                <div className="flex flex-col gap-2 flex-1">
-                                    <label className="text-sm font-bold text-on-surface-variant">Admin Username</label>
-                                    <input 
-                                        type="text" 
-                                        className="input-field bg-background" 
-                                        placeholder="Username"
-                                        value={manageUsersModal.newUsername}
-                                        onChange={(e) => setManageUsersModal({...manageUsersModal, newUsername: e.target.value})}
-                                        required
+                        <div className="space-y-4 pt-6 border-t">
+                            <h3 className="text-sm font-bold uppercase tracking-widest text-secondary">Add New Admin Account</h3>
+                            <Form {...newUserForm}>
+                                <form onSubmit={newUserForm.handleSubmit(onNewUserSubmit)} className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={newUserForm.control}
+                                        name="username"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Username</FormLabel>
+                                                <FormControl>
+                                                    <Input {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
                                     />
-                                </div>
-                                <div className="flex flex-col gap-2 flex-1">
-                                    <label className="text-sm font-bold text-on-surface-variant">Initial Password</label>
-                                    <input 
-                                        type="password" 
-                                        className="input-field bg-background" 
-                                        placeholder="At least 8 characters"
-                                        value={manageUsersModal.newPassword}
-                                        onChange={(e) => setManageUsersModal({...manageUsersModal, newPassword: e.target.value})}
-                                        required
-                                        minLength={8}
+                                    <FormField
+                                        control={newUserForm.control}
+                                        name="password"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Initial Password</FormLabel>
+                                                <FormControl>
+                                                    <Input type="password" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
                                     />
-                                </div>
-                            </div>
-                            <div className="flex justify-end mt-2">
-                                <button type="submit" disabled={isLoading} className="btn-primary">
-                                    {isLoading ? 'Creating...' : 'Create Admin Account'}
-                                </button>
-                            </div>
-                        </form>
+                                    <div className="col-span-2 flex justify-end">
+                                        <Button type="submit" disabled={isLoading}>
+                                            {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                                            Create Admin Account
+                                        </Button>
+                                    </div>
+                                </form>
+                            </Form>
+                        </div>
                     </div>
-                </div>
-            )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Confirmation Dialogs */}
+            <ConfirmDialog
+                isOpen={deleteConfirm.isOpen}
+                onOpenChange={(open) => setDeleteConfirm(prev => ({ ...prev, isOpen: open }))}
+                title="Purge Enterprise Data"
+                description={`WARNING: This will PERMANENTLY delete ${deleteConfirm.companyName} and ALL associated data (transactions, accounts, users). This action cannot be undone.`}
+                confirmText="Purge Everything"
+                variant="destructive"
+                onConfirm={executeHardDeleteCompany}
+            />
+
+            <ConfirmDialog
+                isOpen={wipeConfirm}
+                onOpenChange={setWipeConfirm}
+                title="Total System Reset"
+                description="🚨 CRITICAL WARNING: You are about to PERMANENTLY WIPE ALL SYSTEM DATA. This includes all companies, users, transactions, and reports. Only your master account will remain."
+                confirmText="Execute System Wipe"
+                variant="destructive"
+                requireText="PURGE"
+                onConfirm={executeSystemWipe}
+            />
+
+            <ConfirmDialog
+                isOpen={userDeactivateConfirm.isOpen}
+                onOpenChange={(open) => setUserDeactivateConfirm(prev => ({ ...prev, isOpen: open }))}
+                title="Deactivate User Account"
+                description={`Are you sure you want to deactivate the account for ${userDeactivateConfirm.username}? They will lose all access to the system immediately.`}
+                confirmText="Deactivate Account"
+                variant="destructive"
+                onConfirm={executeDeactivateUser}
+            />
         </div>
     );
 };

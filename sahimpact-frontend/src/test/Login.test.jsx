@@ -17,6 +17,10 @@ vi.mock('../context/NotificationContext', () => ({
     useNotification: () => ({ showNotification: showNotificationMock })
 }));
 
+vi.mock('../context/BrandingContext', () => ({
+    useBranding: () => ({ logo_url: null, company_name: 'SahimPact' })
+}));
+
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
     return {
@@ -44,14 +48,13 @@ describe('Login Page', () => {
 
     it('renders username and password inputs', () => {
         renderLogin();
-        expect(screen.getByPlaceholderText(/username/i)).toBeTruthy();
+        expect(screen.getByPlaceholderText(/enter your id/i)).toBeTruthy();
         expect(screen.getByPlaceholderText(/••••••••/)).toBeTruthy();
     });
 
     it('renders a login button', () => {
         renderLogin();
-        // Find a submit button or element with text 'Sign In' / 'Login'
-        const btn = screen.getByRole('button', { name: /sign in/i });
+        const btn = screen.getByRole('button', { name: /authenticate/i });
         expect(btn).toBeTruthy();
     });
 
@@ -59,14 +62,14 @@ describe('Login Page', () => {
         const loginMock = vi.fn().mockResolvedValue({ role: 'PARTNER', company_id: 1 });
         renderLogin(loginMock);
 
-        fireEvent.change(screen.getByPlaceholderText(/username/i), {
+        fireEvent.change(screen.getByPlaceholderText(/enter your id/i), {
             target: { value: 'testuser' }
         });
         fireEvent.change(screen.getByPlaceholderText(/••••••••/), {
             target: { value: 'password123' }
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+        fireEvent.click(screen.getByRole('button', { name: /authenticate/i }));
 
         await waitFor(() => {
             expect(loginMock).toHaveBeenCalledWith('testuser', 'password123');
@@ -79,13 +82,13 @@ describe('Login Page', () => {
         });
         renderLogin(loginMock);
 
-        fireEvent.change(screen.getByPlaceholderText(/username/i), {
+        fireEvent.change(screen.getByPlaceholderText(/enter your id/i), {
             target: { value: 'wronguser' }
         });
         fireEvent.change(screen.getByPlaceholderText(/••••••••/), {
             target: { value: 'wrongpass' }
         });
-        fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+        fireEvent.click(screen.getByRole('button', { name: /authenticate/i }));
 
         await waitFor(() => {
             expect(showNotificationMock).toHaveBeenCalledWith(
@@ -96,21 +99,26 @@ describe('Login Page', () => {
     });
 
     it('disables the button while logging in', async () => {
-        // login returns a never-resolving promise to simulate loading state
         const loginMock = vi.fn(() => new Promise(() => {}));
         renderLogin(loginMock);
 
-        fireEvent.change(screen.getByPlaceholderText(/username/i), {
+        fireEvent.change(screen.getByPlaceholderText(/enter your id/i), {
             target: { value: 'user' }
         });
         fireEvent.change(screen.getByPlaceholderText(/••••••••/), {
             target: { value: 'password123' }
         });
-        fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+        
+        // Find by role 'button' and type 'submit'
+        const btn = screen.getByRole('button', { name: /authenticate/i });
+        fireEvent.click(btn);
 
         await waitFor(() => {
-            const btn = screen.getByRole('button', { name: /authenticating/i });
-            expect(btn.disabled).toBe(true);
+            // After click, it should be loading, so look for the button with the loader (no text)
+            // Or just check if the button is disabled
+            const buttons = screen.getAllByRole('button');
+            const submitBtn = buttons.find(b => b.getAttribute('type') === 'submit');
+            expect(submitBtn.disabled).toBe(true);
         });
     });
 });

@@ -8,9 +8,18 @@ from app.schemas.schemas import CompanyResponse, CompanyCreate, CompanyAdminCrea
 from app.core.security import require_super_admin_role, get_password_hash, require_admin_role, require_partner_role
 
 
-router = APIRouter(prefix="/companies", tags=["Companies (Super Admin)"])
+router = APIRouter(tags=["Companies (Super Admin)"])
 
-@router.get("", response_model=List[CompanyResponse])
+@router.get("/companies/orphaned-partners", response_model=List[UserResponse])
+def list_orphaned_partners(
+    db: Session = Depends(get_db),
+    claims: dict = Depends(require_super_admin_role)
+):
+    """List all users with RoleEnum.PARTNER who are not linked to any company."""
+    orphans = db.query(User).filter(User.company_id == None, User.role == RoleEnum.PARTNER).all()
+    return orphans
+
+@router.get("/companies", response_model=List[CompanyResponse])
 def get_all_companies(
     db: Session = Depends(get_db),
     claims: dict = Depends(require_super_admin_role)
@@ -28,7 +37,7 @@ def get_all_companies(
         result.append(comp_dict)
     return result
 
-@router.post("", response_model=CompanyResponse)
+@router.post("/companies", response_model=CompanyResponse)
 def create_company(
     company_data: CompanyCreate,
     db: Session = Depends(get_db),
@@ -45,16 +54,8 @@ def create_company(
     db.refresh(new_company)
     return new_company
 
-@router.get("/orphaned-partners", response_model=List[UserResponse])
-def list_orphaned_partners(
-    db: Session = Depends(get_db),
-    claims: dict = Depends(require_super_admin_role)
-):
-    """List all users with RoleEnum.PARTNER who are not linked to any company."""
-    orphans = db.query(User).filter(User.company_id == None, User.role == RoleEnum.PARTNER).all()
-    return orphans
 
-@router.get("/{company_id}", response_model=CompanyResponse)
+@router.get("/companies/{company_id}", response_model=CompanyResponse)
 def get_company(
     company_id: int,
     db: Session = Depends(get_db),
@@ -75,7 +76,7 @@ def get_company(
         comp_dict["admin_username"] = admin.username
     return comp_dict
 
-@router.put("/{company_id}", response_model=CompanyResponse)
+@router.put("/companies/{company_id}", response_model=CompanyResponse)
 def update_company(
     company_id: int,
     company_data: CompanyUpdate,
@@ -107,7 +108,7 @@ def update_company(
     return comp_dict
 
 
-@router.post("/{company_id}/admin", response_model=UserResponse)
+@router.post("/companies/{company_id}/admin", response_model=UserResponse)
 def create_company_admin(
     company_id: int,
     admin_data: CompanyAdminCreate,
@@ -142,7 +143,7 @@ def create_company_admin(
     db.refresh(new_admin)
     return new_admin
 
-@router.get("/{company_id}/users", response_model=List[UserResponse])
+@router.get("/companies/{company_id}/users", response_model=List[UserResponse])
 def get_company_users(
     company_id: int,
     db: Session = Depends(get_db),
@@ -155,7 +156,7 @@ def get_company_users(
     users = db.query(User).filter(User.company_id == company_id).all()
     return users
 
-@router.put("/{company_id}/users/{user_id}/role", response_model=UserResponse)
+@router.put("/companies/{company_id}/users/{user_id}/role", response_model=UserResponse)
 def update_user_role(
     company_id: int,
     user_id: int,
@@ -182,7 +183,7 @@ def update_user_role(
     db.refresh(user)
     return user
 
-@router.delete("/{company_id}/users/{user_id}", status_code=204)
+@router.delete("/companies/{company_id}/users/{user_id}", status_code=204)
 def deactivate_user(
     company_id: int,
     user_id: int,
@@ -201,7 +202,7 @@ def deactivate_user(
     db.commit()
     return None
 
-@router.put("/{company_id}/toggle-active", response_model=CompanyResponse)
+@router.put("/companies/{company_id}/toggle-active", response_model=CompanyResponse)
 def toggle_company_active(
     company_id: int,
     db: Session = Depends(get_db),
@@ -217,7 +218,7 @@ def toggle_company_active(
     db.refresh(company)
     return company
 
-@router.delete("/{company_id}", status_code=204)
+@router.delete("/companies/{company_id}", status_code=204)
 def delete_company(
     company_id: int,
     db: Session = Depends(get_db),
@@ -233,7 +234,7 @@ def delete_company(
     return None
 
 
-@router.post("/{company_id}/adopt-partner/{user_id}", response_model=UserResponse)
+@router.post("/companies/{company_id}/adopt-partner/{user_id}", response_model=UserResponse)
 def adopt_partner(
     company_id: int,
     user_id: int,
