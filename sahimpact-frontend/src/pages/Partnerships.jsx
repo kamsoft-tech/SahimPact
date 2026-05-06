@@ -284,7 +284,7 @@ const Partnerships = () => {
                     <p className="text-text-muted mt-2 font-medium">Manage company partners, equity distribution, and digital governance.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {activeTab === 'partners' && (
+                    {activeTab === 'partners' && role !== 'PARTNER' && (
                         <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
                             <DialogTrigger asChild>
                                 <Button className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl h-12 px-6">
@@ -429,35 +429,37 @@ const Partnerships = () => {
                                     </div>
                                 </div>
                             </CardContent>
-                            <CardFooter className="pt-4 border-t border-border-muted/10 gap-3 bg-bg-base/10 group-hover:bg-bg-base/30 transition-colors">
-                                <Button 
-                                    variant="ghost" 
-                                    className="flex-1 font-black text-[10px] uppercase tracking-widest h-10 rounded-xl hover:bg-bg-surface hover:text-primary"
-                                    onClick={() => { 
-                                        setTargetUser(user); 
-                                        resetForm.reset();
-                                        setShowResetModal(true); 
-                                    }}
-                                >
-                                    <KeyRound className="w-3.5 h-3.5 mr-2" /> Reset PW
-                                </Button>
-                                <Button 
-                                    variant="ghost" 
-                                    className="flex-1 font-black text-[10px] uppercase tracking-widest h-10 rounded-xl hover:bg-bg-surface hover:text-primary"
-                                    onClick={() => {
-                                        setTargetUser(user);
-                                        editForm.reset({
-                                            full_name: user.full_name || '',
-                                            role: user.role,
-                                            capital_share_fixed: userShare?.capital_share_fixed || 0,
-                                            voluntary_charity_percentage: (userShare?.voluntary_charity_percentage || 0) * 100
-                                        });
-                                        setShowEditModal(true);
-                                    }}
-                                >
-                                    <Edit2 className="w-3.5 h-3.5 mr-2" /> Edit
-                                </Button>
-                            </CardFooter>
+                            {role !== 'PARTNER' && (
+                                <CardFooter className="pt-4 border-t border-border-muted/10 gap-3 bg-bg-base/10 group-hover:bg-bg-base/30 transition-colors">
+                                    <Button 
+                                        variant="ghost" 
+                                        className="flex-1 font-black text-[10px] uppercase tracking-widest h-10 rounded-xl hover:bg-bg-surface hover:text-primary"
+                                        onClick={() => { 
+                                            setTargetUser(user); 
+                                            resetForm.reset();
+                                            setShowResetModal(true); 
+                                        }}
+                                    >
+                                        <KeyRound className="w-3.5 h-3.5 mr-2" /> Reset PW
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        className="flex-1 font-black text-[10px] uppercase tracking-widest h-10 rounded-xl hover:bg-bg-surface hover:text-primary"
+                                        onClick={() => {
+                                            setTargetUser(user);
+                                            editForm.reset({
+                                                full_name: user.full_name || '',
+                                                role: user.role,
+                                                capital_share_fixed: userShare?.capital_share_fixed || 0,
+                                                voluntary_charity_percentage: (userShare?.voluntary_charity_percentage || 0) * 100
+                                            });
+                                            setShowEditModal(true);
+                                        }}
+                                    >
+                                        <Edit2 className="w-3.5 h-3.5 mr-2" /> Edit
+                                    </Button>
+                                </CardFooter>
+                            )}
                         </Card>
                     );
                 })}

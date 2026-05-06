@@ -33,7 +33,7 @@ router = APIRouter(tags=["Authentication"])
 def list_company_users(
     request: Request,
     db: Session = Depends(get_db),
-    claims: dict = Depends(require_partner_role)
+    claims: dict = Depends(require_admin_role)
 ):
     """List all users for the authenticated admin's company."""
     company_id = get_current_company_id(request, claims)

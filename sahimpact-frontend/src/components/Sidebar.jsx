@@ -55,7 +55,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { name: 'Time Log', icon: Timer, path: '/timelog', roles: ['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN'] },
         { name: 'Ledger', icon: Wallet, path: '/ledger', roles: ['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN'] },
         { name: 'Charity Fund', icon: Heart, path: '/charity', roles: ['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN'] },
-        { name: 'Partnerships', icon: Handshake, path: '/partnerships', roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'] },
+        { name: 'Partnerships', icon: Handshake, path: '/partnerships', roles: ['COMPANY_ADMIN', 'SUPER_ADMIN', 'PARTNER'] },
         { name: 'System Nexus', icon: Settings, path: '/config', roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'] },
     ];
 
