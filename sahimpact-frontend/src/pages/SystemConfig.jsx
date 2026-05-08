@@ -76,11 +76,12 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const settingsSchema = z.object({
-    primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-    secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-    logo_url: z.string().url().or(z.string().length(0)),
-    favicon_url: z.string().url().or(z.string().length(0)),
-    company_name: z.string().optional(),
+    primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color").optional().nullable(),
+    secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color").optional().nullable(),
+    logo_url: z.string().url().or(z.string().length(0)).optional().nullable(),
+    favicon_url: z.string().url().or(z.string().length(0)).optional().nullable(),
+    company_name: z.string().optional().nullable(),
+    summary: z.string().optional().nullable(),
 });
 
 const companySchema = z.object({
@@ -129,7 +130,8 @@ const SystemConfig = () => {
         secondary_color: '#bfc1ff',
         logo_url: '',
         favicon_url: '',
-        company_name: ''
+        company_name: '',
+        summary: ''
     });
 
     // Forms
@@ -195,7 +197,7 @@ const SystemConfig = () => {
                 }
             }
 
-            const fetchedSettings = { ...settingsRes.data, company_name: companyName };
+            const fetchedSettings = { ...settingsRes.data, company_name: companyName, summary: '' };
             setSettings(fetchedSettings);
             settingsForm.reset(fetchedSettings);
             setPendingAgreement(pendingRes.data);

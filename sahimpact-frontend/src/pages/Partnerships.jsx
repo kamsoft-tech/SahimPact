@@ -44,6 +44,7 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
     Table,
     TableBody,
@@ -78,10 +79,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const settingsSchema = z.object({
-    primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-    secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-    logo_url: z.string().url().or(z.string().length(0)),
-    favicon_url: z.string().url().or(z.string().length(0)),
+    primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color").optional().nullable(),
+    secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color").optional().nullable(),
+    logo_url: z.string().url().or(z.string().length(0)).optional().nullable(),
+    favicon_url: z.string().url().or(z.string().length(0)).optional().nullable(),
     currency_symbol: z.string().min(1, "Required"),
     charity_percentage: z.number().min(0).max(1),
     partnership_mode: z.string(),
@@ -89,7 +90,8 @@ const settingsSchema = z.object({
     capital_pool_percentage: z.number().min(0).max(1),
     labour_pool_percentage: z.number().min(0).max(1),
     contingency_pot_minimum: z.number().min(0),
-    company_name: z.string().optional(),
+    company_name: z.string().optional().nullable(),
+    summary: z.string().optional().nullable(),
 });
 
 const addPartnerSchema = z.object({
@@ -104,6 +106,7 @@ const editPartnerSchema = z.object({
     role: z.enum(["PARTNER", "COMPANY_ADMIN"]),
     capital_share_fixed: z.coerce.number().min(0, "Capital must be positive"),
     voluntary_charity_percentage: z.coerce.number().min(0).max(100, "Percentage must be between 0 and 100"),
+    summary: z.string().optional().nullable(),
 });
 
 const resetPasswordSchema = z.object({
@@ -142,6 +145,7 @@ const Partnerships = () => {
     const [showResetModal, setShowResetModal] = useState(false);
     const [targetUser, setTargetUser] = useState(null);
     const [agreementConfirm, setAgreementConfirm] = useState({ isOpen: false, id: null, action: null });
+    const [viewingAgreement, setViewingAgreement] = useState(null);
 
     const addForm = useForm({
         resolver: zodResolver(addPartnerSchema),
@@ -236,11 +240,13 @@ const Partnerships = () => {
             await axios.put(`/api/admin/shares/${targetUser.id}`, {
                 capital_share_fixed: data.capital_share_fixed,
                 labor_share_variable: 0,
-                voluntary_charity_percentage: data.voluntary_charity_percentage / 100
+                voluntary_charity_percentage: data.voluntary_charity_percentage / 100,
+                summary: data.summary
             });
 
             showNotification("Update proposed. All partners must sign the agreement to finalize changes.", "success");
             setShowEditModal(false);
+            editForm.setValue('summary', '');
             fetchData();
         } catch (error) {
             showNotification(error.response?.data?.detail || "Failed to update user", "error");
@@ -265,7 +271,7 @@ const Partnerships = () => {
         setAgreementConfirm({ isOpen: true, id, action });
     };
 
-    const executeSignAgreement = async () => {
+    const confirmAction = async () => {
         const { id, action } = agreementConfirm;
         try {
             await axios.post(`/api/agreements/${id}/sign`, { action });
@@ -273,6 +279,8 @@ const Partnerships = () => {
             fetchData();
         } catch (error) {
             showNotification("Failed to record signature", "error");
+        } finally {
+            setAgreementConfirm({ isOpen: false, id: null, action: null });
         }
     };
 
@@ -580,6 +588,19 @@ const Partnerships = () => {
                                     )}
                                 />
                             </div>
+                            <FormField
+                                control={editForm.control}
+                                name="summary"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Proposal Summary (Reason for change)</FormLabel>
+                                        <FormControl>
+                                            <Textarea {...field} className="bg-bg-base border-border-muted font-medium min-h-[80px]" placeholder="Explain why this change is being made..." />
+                                        </FormControl>
+                                        <FormMessage className="text-[10px] font-bold" />
+                                    </FormItem>
+                                )}
+                            />
                             <DialogFooter className="pt-4">
                                 <Button type="button" variant="ghost" onClick={() => setShowEditModal(false)} className="font-black rounded-xl">Cancel</Button>
                                 <Button type="submit" className="bg-primary hover:bg-primary/90 text-on-primary font-black rounded-xl flex-1">Save Changes</Button>
@@ -747,6 +768,19 @@ const Partnerships = () => {
                                                     <FormDescription className="text-[10px] font-bold text-text-muted mt-1">
                                                         Recommended reserve for unforeseen liabilities.
                                                     </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={settingsForm.control}
+                                            name="summary"
+                                            render={({ field }) => (
+                                                <FormItem className="col-span-full">
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Governance Proposal Summary</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea {...field} className="bg-bg-base border-border-muted font-medium min-h-[100px]" placeholder="Provide a detailed summary of these governance changes for other partners to review..." />
+                                                    </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -994,7 +1028,11 @@ const Partnerships = () => {
                             </TableHeader>
                             <TableBody>
                                 {agreementHistory.map(ag => (
-                                    <TableRow key={ag.id} className="hover:bg-primary/[0.02] border-border-muted/10">
+                                    <TableRow 
+                                        key={ag.id} 
+                                        className="hover:bg-primary/[0.02] border-border-muted/10 cursor-pointer transition-colors"
+                                        onClick={() => setViewingAgreement(ag)}
+                                    >
                                         <TableCell className="px-6 py-5 text-xs font-bold text-text-muted">
                                             {new Date(ag.created_at).toLocaleDateString()}
                                         </TableCell>
@@ -1069,17 +1107,149 @@ const Partnerships = () => {
                 </TabsContent>
             </Tabs>
 
-            <ConfirmDialog
+            <ConfirmDialog 
                 isOpen={agreementConfirm.isOpen}
-                onOpenChange={(open) => setAgreementConfirm(prev => ({ ...prev, isOpen: open }))}
-                title={agreementConfirm.action === 'APPROVE' ? "Confirm Signature" : "Confirm Rejection"}
+                onClose={() => setAgreementConfirm({ isOpen: false, id: null, action: null })}
+                onConfirm={confirmAction}
+                title={agreementConfirm.action === 'APPROVE' ? "Seal Agreement" : "Reject Proposal"}
                 description={agreementConfirm.action === 'APPROVE' 
-                    ? "Are you sure you want to digitally sign and approve this partnership agreement? This action will be recorded in the immutable audit log."
-                    : "Are you sure you want to reject this proposed agreement? This will notify all partners and stop the proposal process."}
-                confirmText={agreementConfirm.action === 'APPROVE' ? "Seal & Approve" : "Reject Proposal"}
+                    ? "Are you sure you want to digitally sign and approve this proposal? This action is permanent once all partners agree."
+                    : "Are you sure you want to reject this proposal? This will cancel the pending changes for everyone."
+                }
+                confirmText={agreementConfirm.action === 'APPROVE' ? "Approve" : "Reject"}
                 variant={agreementConfirm.action === 'APPROVE' ? "default" : "destructive"}
-                onConfirm={executeSignAgreement}
             />
+
+            {/* Agreement Details Modal */}
+            <Dialog open={!!viewingAgreement} onOpenChange={(open) => !open && setViewingAgreement(null)}>
+                <DialogContent className="bg-bg-surface border-border-muted max-w-[95vw] lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <div className="flex items-center gap-3 mb-2">
+                            <Badge className={cn(
+                                "px-3 py-1 font-black tracking-widest uppercase rounded-full text-[9px]",
+                                viewingAgreement?.status === 'APPROVED' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-destructive/20 text-destructive border-destructive/20'
+                            )}>
+                                {viewingAgreement?.status}
+                            </Badge>
+                            <span className="text-[10px] text-text-muted font-black uppercase tracking-widest">
+                                Agreement #{viewingAgreement?.id} • {viewingAgreement && new Date(viewingAgreement.created_at).toLocaleString()}
+                            </span>
+                        </div>
+                        <DialogTitle className="text-3xl font-black text-text-main font-brand uppercase tracking-tighter">
+                            {viewingAgreement?.change_summary}
+                        </DialogTitle>
+                        <DialogDescription className="text-text-muted font-medium">
+                            Proposed by {viewingAgreement?.proposed_by_name}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-6">
+                        <div className="space-y-6">
+                            {viewingAgreement?.proposed_settings && (
+                                <div className="bg-bg-base/40 rounded-2xl p-6 border border-border-muted/10">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted mb-4 flex items-center gap-2">
+                                        <Banknote className="w-3 h-3" /> Financial Parameters
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                                        <div>
+                                            <span className="text-[10px] block text-text-muted font-bold uppercase tracking-widest">Charity Pot</span>
+                                            <span className="font-black text-text-main">{(viewingAgreement.proposed_settings.charity_percentage * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] block text-text-muted font-bold uppercase tracking-widest">Capital Pool</span>
+                                            <span className="font-black text-text-main">{(viewingAgreement.proposed_settings.capital_pool_percentage * 100).toFixed(0)}%</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] block text-text-muted font-bold uppercase tracking-widest">Labour Pool</span>
+                                            <span className="font-black text-text-main">{(viewingAgreement.proposed_settings.labour_pool_percentage * 100).toFixed(0)}%</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] block text-text-muted font-bold uppercase tracking-widest">Min. Contingency</span>
+                                            <span className="font-black text-text-main">{viewingAgreement.proposed_settings.currency_symbol}{viewingAgreement.proposed_settings.contingency_pot_minimum.toLocaleString()}</span>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <span className="text-[10px] block text-text-muted font-bold uppercase tracking-widest">Partnership Mode</span>
+                                            <span className="font-black text-text-main uppercase">{viewingAgreement.proposed_settings.partnership_mode.replace('_', ' ')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewingAgreement?.proposed_shares && (
+                                <div className="bg-bg-base/40 rounded-2xl p-6 border border-border-muted/10">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted mb-4 flex items-center gap-2">
+                                        <Users className="w-3 h-3" /> Equity Allocation
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {viewingAgreement.proposed_shares.map((share, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-xs pb-3 border-b border-border-muted/5 last:border-0 last:pb-0">
+                                                <div className="flex flex-col">
+                                                    <span className="font-black text-text-main">{users.find(u => u.id === share.user_id)?.full_name || `Partner ${share.user_id}`}</span>
+                                                    <span className="text-[9px] text-text-muted font-bold uppercase">Fixed Investment</span>
+                                                </div>
+                                                <span className="font-black font-tabular text-primary text-sm">{viewingAgreement.proposed_settings?.currency_symbol || '£'}{share.capital_share_fixed.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="bg-bg-base/40 rounded-2xl p-6 border border-border-muted/10">
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted mb-6 flex items-center gap-2">
+                                    <ShieldCheck className="w-3 h-3" /> Multi-Sig Audit Trail
+                                </h4>
+                                <div className="space-y-4">
+                                    {viewingAgreement?.signoffs.map(sign => (
+                                        <div key={sign.id} className="flex items-center justify-between p-3 bg-bg-surface/50 rounded-xl border border-border-muted/5">
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-2 h-2 rounded-full",
+                                                    sign.status === 'APPROVED' ? 'bg-primary' : 'bg-text-muted/20'
+                                                )}></div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-text-main">{sign.full_name || sign.username}</span>
+                                                    {sign.signed_at && (
+                                                        <span className="text-[9px] text-text-muted font-bold">{new Date(sign.signed_at).toLocaleDateString()}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {sign.status === 'APPROVED' ? (
+                                                <CheckCircle2 className="w-4 h-4 text-primary" />
+                                            ) : sign.status === 'REJECTED' ? (
+                                                <X className="w-4 h-4 text-destructive" />
+                                            ) : (
+                                                <Badge variant="ghost" className="text-[8px] font-black tracking-widest text-text-muted uppercase">Pending</Badge>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {viewingAgreement?.status === 'APPROVED' && viewingAgreement.effective_at && (
+                                <div className="p-6 bg-primary/5 border border-primary/10 rounded-2xl flex items-center gap-4">
+                                    <div className="p-3 bg-primary/10 rounded-xl text-primary">
+                                        <Fingerprint className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h5 className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Execution Proof</h5>
+                                        <p className="text-xs font-bold text-text-muted leading-tight">
+                                            This agreement was finalized and applied to the protocol on {new Date(viewingAgreement.effective_at).toLocaleString()}.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter className="border-t border-border-muted/10 pt-6">
+                        <Button variant="outline" onClick={() => setViewingAgreement(null)} className="font-black rounded-xl px-8">
+                            Close Archive
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

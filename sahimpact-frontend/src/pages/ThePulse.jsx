@@ -28,7 +28,7 @@ const closePeriodSchema = z.object({
 
 const ThePulse = () => {
     const { role, company_id } = useAuth();
-    const { logo_url } = useBranding();
+    const { logo_url, company_name } = useBranding();
     const [stats, setStats] = useState({
         total_revenue: 0,
         total_expenses: 0,

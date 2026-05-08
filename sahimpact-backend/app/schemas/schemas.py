@@ -106,6 +106,7 @@ class PartnerShareUpdate(BaseModel):
     capital_share_fixed: float = Field(default=0.0, ge=0)
     labor_share_variable: float = Field(default=0.0, ge=0, le=100)
     voluntary_charity_percentage: float = Field(default=0.0, ge=0, le=1)
+    summary: Optional[str] = None
 
 class PartnerShareResponse(PartnerShareUpdate):
     id: Optional[int] = None
@@ -158,7 +159,7 @@ class GlobalSettingsBase(BaseModel):
     secondary_color: Optional[str] = "#bfc1ff"
 
 class GlobalSettingsUpdate(GlobalSettingsBase):
-    pass
+    summary: Optional[str] = None
 
 class GlobalSettingsResponse(GlobalSettingsBase):
     id: Optional[int] = None

@@ -175,6 +175,9 @@ def update_partner_share(
             existing_agreement.proposed_by_id = current_user.id
             existing_agreement.created_at = datetime.now(timezone.utc)
             
+            if share_update.summary:
+                existing_agreement.change_summary = share_update.summary
+            
             # Clear old signoffs
             db.query(AgreementSignoff).filter(AgreementSignoff.agreement_id == existing_agreement.id).delete()
             agreement = existing_agreement
@@ -227,7 +230,7 @@ def update_partner_share(
                 proposed_settings=proposed_settings,
                 proposed_shares=proposed_shares,
                 status=AgreementStatus.PENDING,
-                change_summary=f"Update shares for {target_user.full_name or target_user.username}"
+                change_summary=share_update.summary if share_update.summary else f"Update shares for {target_user.full_name or target_user.username}"
             )
             db.add(agreement)
             db.flush() # Get the ID without committing yet

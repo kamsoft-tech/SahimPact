@@ -53,6 +53,7 @@ def update_settings(
     
     # Prepare the proposed settings dict
     proposed_settings = settings_update.model_dump()
+    provided_summary = proposed_settings.pop('summary', None)
     
     # Check for existing pending agreement
     from app.models.models import Agreement, AgreementSignoff, AgreementStatus, RoleEnum
@@ -80,6 +81,10 @@ def update_settings(
         
         existing_agreement.proposed_by_id = current_user.id
         existing_agreement.created_at = datetime.now(timezone.utc)
+        
+        if provided_summary:
+            existing_agreement.change_summary = provided_summary
+            
         # Reset signoffs
         db.query(AgreementSignoff).filter(AgreementSignoff.agreement_id == existing_agreement.id).delete()
         agreement = existing_agreement
@@ -102,7 +107,7 @@ def update_settings(
             proposed_settings=proposed_settings,
             proposed_shares=proposed_shares,
             status=AgreementStatus.PENDING,
-            change_summary="Update financial parameters"
+            change_summary=provided_summary if provided_summary else "Update financial parameters"
         )
         db.add(agreement)
         db.commit()
