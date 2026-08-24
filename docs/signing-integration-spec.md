@@ -44,8 +44,10 @@ turnkey option so small clients need no setup.
 
 For clients who want everything inside SahimPact — no third party in the loop:
 
-- **Document generation** — render the agreement PDF from a template + agreed terms
-  (`weasyprint` from HTML, or `reportlab`).
+- **Document generation** — assemble the agreement PDF from the **certified clause library**
+  (mandatory/locked + chosen optional clauses — see
+  [`expansion-spec.md`](./expansion-spec.md)) + the agreed terms (`weasyprint` from HTML, or
+  `reportlab`). Never free‑text the Shariah core.
 - **Signature capture** — drawn / typed / uploaded signature in the React UI, placed on the
   document at defined anchor fields.
 - **Cryptographic seal** — apply a **PAdES digital signature** with a PKCS#12 certificate
