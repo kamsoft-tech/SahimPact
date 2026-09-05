@@ -23,6 +23,8 @@ const Layout = () => {
         '/timelog': 'Time Log',
         '/charity': 'Charity Fund',
         '/config': 'System Configuration',
+        '/master': 'Master Fund Dashboard',
+        '/contracts': 'Contract Library',
         '/account': 'My Account'
     };
 

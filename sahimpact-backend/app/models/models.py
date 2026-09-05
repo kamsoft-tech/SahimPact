@@ -5,6 +5,22 @@ from datetime import datetime, timezone
 
 from app.db.database import Base
 
+from sqlalchemy.orm import declared_attr
+
+class TimestampMixin:
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+class AuditMixin:
+    @declared_attr
+    def created_by_id(cls):
+        return Column(Integer, ForeignKey("users.id"), nullable=True)
+        
+    @declared_attr
+    def updated_by_id(cls):
+        return Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+
 class RoleEnum(str, enum.Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
     COMPANY_ADMIN = "COMPANY_ADMIN"
@@ -21,12 +37,11 @@ class EntryTypeEnum(enum.Enum):
     DEBIT = "debit"
     CREDIT = "credit"
 
-class Company(Base):
+class Company(Base, TimestampMixin, AuditMixin):
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
 
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
@@ -36,7 +51,7 @@ class Company(Base):
     monthly_reports = relationship("MonthlyReport", back_populates="company", cascade="all, delete-orphan")
 
 
-class User(Base):
+class User(Base, TimestampMixin, AuditMixin):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -70,7 +85,7 @@ class User(Base):
                  return None # Super admin cannot have a company_id
         return value
 
-class PartnerShare(Base):
+class PartnerShare(Base, TimestampMixin, AuditMixin):
     __tablename__ = "partner_shares"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -82,7 +97,7 @@ class PartnerShare(Base):
 
     user = relationship("User", back_populates="partner_share")
 
-class TimeEntry(Base):
+class TimeEntry(Base, TimestampMixin, AuditMixin):
     __tablename__ = "time_entries"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -97,7 +112,7 @@ class TimeEntry(Base):
 
     user = relationship("User", back_populates="time_entries")
 
-class Account(Base):
+class Account(Base, TimestampMixin, AuditMixin):
     __tablename__ = "accounts"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -108,7 +123,7 @@ class Account(Base):
     company = relationship("Company", back_populates="accounts")
     entries = relationship("JournalEntry", back_populates="account", cascade="all, delete-orphan")
 
-class Transaction(Base):
+class Transaction(Base, TimestampMixin, AuditMixin):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -126,7 +141,7 @@ class Transaction(Base):
     entries = relationship("JournalEntry", back_populates="transaction", cascade="all, delete-orphan")
     expense_receipt = relationship("ExpenseReceipt", back_populates="transaction", uselist=False, cascade="all, delete-orphan")
 
-class JournalEntry(Base):
+class JournalEntry(Base, TimestampMixin, AuditMixin):
     __tablename__ = "journal_entries"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -138,7 +153,7 @@ class JournalEntry(Base):
     transaction = relationship("Transaction", back_populates="entries")
     account = relationship("Account", back_populates="entries")
 
-class ExpenseReceipt(Base):
+class ExpenseReceipt(Base, TimestampMixin, AuditMixin):
     __tablename__ = "expense_receipts"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -147,7 +162,7 @@ class ExpenseReceipt(Base):
 
     transaction = relationship("Transaction", back_populates="expense_receipt")
 
-class GlobalSettings(Base):
+class GlobalSettings(Base, TimestampMixin, AuditMixin):
     __tablename__ = "global_settings"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -169,7 +184,7 @@ class GlobalSettings(Base):
 
     company = relationship("Company", back_populates="settings")
 
-class MonthlyReport(Base):
+class MonthlyReport(Base, TimestampMixin, AuditMixin):
     __tablename__ = "monthly_reports"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -179,7 +194,6 @@ class MonthlyReport(Base):
     global_charity = Column(Float, nullable=False)
     voluntary_charity = Column(Float, nullable=False)
     report_data = Column(JSON, nullable=False) # Full report snapshot
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     company = relationship("Company", back_populates="monthly_reports")
 
@@ -193,7 +207,7 @@ class AgreementType(str, enum.Enum):
     PARAMETER_CHANGE = "PARAMETER_CHANGE"
     PERIOD_CLOSE = "PERIOD_CLOSE"
 
-class Agreement(Base):
+class Agreement(Base, TimestampMixin, AuditMixin):
     __tablename__ = "agreements"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -211,7 +225,6 @@ class Agreement(Base):
     agreement_type = Column(Enum(AgreementType), default=AgreementType.PARAMETER_CHANGE)
     change_summary = Column(String, nullable=True)
     status = Column(Enum(AgreementStatus), default=AgreementStatus.PENDING)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     effective_at = Column(DateTime, nullable=True)
 
     company = relationship("Company")
@@ -219,7 +232,7 @@ class Agreement(Base):
     negligent_user = relationship("User", foreign_keys=[negligent_user_id])
     signoffs = relationship("AgreementSignoff", back_populates="agreement", cascade="all, delete-orphan")
 
-class AgreementSignoff(Base):
+class AgreementSignoff(Base, TimestampMixin, AuditMixin):
     __tablename__ = "agreement_signoffs"
 
     id = Column(Integer, primary_key=True, index=True)

@@ -12,9 +12,15 @@ from .api.endpoints.ledger import router as ledger_router
 from .api.endpoints.time_tracking import router as time_tracking_router
 from .api.endpoints.companies import router as companies_router
 from .api.endpoints.agreements import router as agreements_router
+from .api.endpoints.master import router as master_router
+from .api.endpoints.contracts import router as contracts_router
 from app.db.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models.models import User, RoleEnum
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from starlette.requests import Request
+from app.core.rate_limit import limiter
 
 # Initialize database tables
 Base.metadata.create_all(bind=engine)
@@ -32,7 +38,6 @@ def seed_db():
             initial_password = os.environ.get("SUPER_ADMIN_INITIAL_PASSWORD", "ChangeMe_OnFirstLogin!")
             admin = User(
                 username="admin",
-                company_id=None, # Super admin doesn't need a company initially
                 full_name="Super Administrator",
                 hashed_password=get_password_hash(initial_password),
                 role=RoleEnum.SUPER_ADMIN
@@ -50,6 +55,16 @@ def seed_db():
 seed_db()
 
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self';"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 # Setup CORS — OWASP A05:2021: Never allow all origins with credentials
 # Set ALLOWED_ORIGINS env var to a comma-separated list of your frontend URLs
@@ -79,4 +94,6 @@ app.include_router(ledger_router, prefix="/api")
 app.include_router(time_tracking_router, prefix="/api/time")
 app.include_router(companies_router, prefix="/api")
 app.include_router(agreements_router, prefix="/api")
+app.include_router(master_router, prefix="/api")
+app.include_router(contracts_router, prefix="/api")
 

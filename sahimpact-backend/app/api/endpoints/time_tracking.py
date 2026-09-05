@@ -66,8 +66,13 @@ def log_time(
         raise HTTPException(status_code=401, detail="User ID not found in token")
     
     now = datetime.now(timezone.utc)
+    if entry.start_time.tzinfo is None:
+        entry.start_time = entry.start_time.replace(tzinfo=timezone.utc)
+    if entry.end_time.tzinfo is None:
+        entry.end_time = entry.end_time.replace(tzinfo=timezone.utc)
+
     if entry.start_time > now or entry.end_time > now:
-        raise HTTPException(status_code=400, detail="Cannot log hours in the future")
+        raise HTTPException(status_code=400, detail="Cannot log time in the future")
 
     if entry.end_time <= entry.start_time:
          raise HTTPException(status_code=400, detail="End time must be after start time")
@@ -204,6 +209,11 @@ def update_time_entry(
             raise HTTPException(status_code=403, detail="You can only edit your own time entries")
             
     now = datetime.now(timezone.utc)
+    if entry_update.start_time.tzinfo is None:
+        entry_update.start_time = entry_update.start_time.replace(tzinfo=timezone.utc)
+    if entry_update.end_time.tzinfo is None:
+        entry_update.end_time = entry_update.end_time.replace(tzinfo=timezone.utc)
+
     if entry_update.start_time > now or entry_update.end_time > now:
         raise HTTPException(status_code=400, detail="Cannot log hours in the future")
 

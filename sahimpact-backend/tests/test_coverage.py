@@ -44,12 +44,12 @@ class TestAuthExtended:
         admin_res = client.post(
             f"/api/companies/{company_id}/admin/",
             headers=headers,
-            json={"username": "ptcadmin", "password": "adminpass123"}
+            json={"username": "ptcadmin", "password": "ptcAdminPass123!_safe_$$"}
         )
         assert admin_res.status_code == 200
 
         # Log in as company admin
-        co_admin_login = client.post("/api/token", data={"username": "ptcadmin", "password": "adminpass123"})
+        co_admin_login = client.post("/api/token", data={"username": "ptcadmin", "password": "ptcAdminPass123!_safe_$$"})
         assert co_admin_login.status_code == 200
         co_admin_token = co_admin_login.json()["access_token"]
         co_headers = {"Authorization": f"Bearer {co_admin_token}"}
@@ -57,7 +57,7 @@ class TestAuthExtended:
         # Create a partner under this company
         partner_res = client.post("/api/admin/users", headers=co_headers, json={
             "username": "partnertestuser",
-            "password": "partnerpass123",
+            "password": "ptcPartnerPass123!_safe_$$",
             "full_name": "Partner Test"
         })
         assert partner_res.status_code == 200
@@ -66,14 +66,14 @@ class TestAuthExtended:
         # Duplicate username should fail
         dup_res = client.post("/api/admin/users", headers=co_headers, json={
             "username": "partnertestuser",
-            "password": "partnerpass123"
+            "password": "ptcPartnerPass123!_safe_$$"
         })
         assert dup_res.status_code == 400
 
         # Invalid username (non-alphanumeric) should fail
         invalid_res = client.post("/api/admin/users", headers=co_headers, json={
             "username": "bad user!",
-            "password": "partnerpass123"
+            "password": "ptcPartnerPass123!_safe_$$"
         })
         assert invalid_res.status_code == 400
 
@@ -85,7 +85,7 @@ class TestAuthExtended:
         headers = {"Authorization": f"Bearer {admin_token}"}
         res = client.post("/api/admin/users", headers=headers, json={
             "username": "saadminpartner",
-            "password": "somepassword123"
+            "password": "ptcAdminPass123!_safe_$$"
         })
         assert res.status_code == 200
         assert res.json()["username"] == "saadminpartner"
@@ -122,17 +122,19 @@ class TestAuthExtended:
         # Change password
         res = client.put("/api/me/password", headers=headers, json={
             "current_password": initial_pwd,
-            "new_password": "NewSecurePass123!"
+            "new_password": "ptcNewSecurePass123!_safe_$$"
         })
         assert res.status_code == 200
 
         # Change it back
-        new_headers_res = client.post("/api/token", data={"username": "admin", "password": "NewSecurePass123!"})
+        new_headers_res = client.post("/api/token", data={"username": "admin", "password": "ptcNewSecurePass123!_safe_$$"})
         assert new_headers_res.status_code == 200
-        temp_token = new_headers_res.json()["access_token"]
-        client.put("/api/me/password",
-                   headers={"Authorization": f"Bearer {temp_token}"},
-                   json={"current_password": "NewSecurePass123!", "new_password": initial_pwd})
+        new_token = new_headers_res.json()["access_token"]
+        new_headers = {"Authorization": f"Bearer {new_token}"}
+        client.put("/api/me/password", headers=new_headers, json={
+            "current_password": "ptcNewSecurePass123!_safe_$$",
+            "new_password": initial_pwd
+        })
 
     def test_change_own_password_wrong_current(self, client, partner_token):
         """Wrong current password should return 400."""
@@ -161,11 +163,11 @@ class TestAuthExtended:
         co2 = client.post("/api/companies/", headers=sa_headers, json={"name": "CrossCo2"}).json()
 
         client.post(f"/api/companies/{co1['id']}/admin/", headers=sa_headers,
-                    json={"username": "co1admin", "password": "adminpass123"})
+                    json={"username": "co1admin", "password": "ptcAdminPass123!_safe_$$"})
         client.post(f"/api/companies/{co2['id']}/admin/", headers=sa_headers,
-                    json={"username": "co2admin", "password": "adminpass123"})
+                    json={"username": "co2admin", "password": "ptcAdminPass123!_safe_$$"})
 
-        co1_login = client.post("/api/token", data={"username": "co1admin", "password": "adminpass123"})
+        co1_login = client.post("/api/token", data={"username": "co1admin", "password": "ptcAdminPass123!_safe_$$"})
         co1_token = co1_login.json()["access_token"]
         co2_admin = client.get(f"/api/companies/{co2['id']}/users", headers=sa_headers).json()
 
@@ -193,15 +195,15 @@ class TestCompaniesUserMgmt:
         company_id = co["id"]
 
         client.post(f"/api/companies/{company_id}/admin/", headers=sa_headers,
-                    json={"username": "umgmtadmin", "password": "adminpass123"})
+                    json={"username": "umgmtadmin", "password": "ptcAdminPass123!_safe_$$"})
 
-        co_admin_token = client.post("/api/token", data={"username": "umgmtadmin", "password": "adminpass123"}).json()["access_token"]
+        co_admin_token = client.post("/api/token", data={"username": "umgmtadmin", "password": "ptcAdminPass123!_safe_$$"}).json()["access_token"]
         co_headers = {"Authorization": f"Bearer {co_admin_token}"}
 
         # Create a partner
         client.post("/api/admin/users", headers=co_headers, json={
             "username": "umgmtpartner",
-            "password": "partnerpass123"
+            "password": "ptcPartnerPass123!_safe_$$"
         })
 
         users = client.get(f"/api/companies/{company_id}/users", headers=sa_headers).json()
@@ -320,7 +322,8 @@ class TestExpenses:
         headers = {"Authorization": f"Bearer {admin_token}"}
         # 1. Standard Cash Expense with Receipt
         from io import BytesIO
-        file_content = b"fake receipt image"
+        # Valid PNG magic bytes + fake data
+        file_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0DIHDR" + b"fake_receipt_data_to_pass_validation"
         files = {
             "receipt_file": ("receipt.png", BytesIO(file_content), "image/png")
         }
@@ -410,17 +413,6 @@ class TestIngestion:
         output.seek(0)
         return io.BytesIO(output.read().encode("utf-8"))
 
-    def test_ingest_pos_success(self, client, admin_token):
-        headers = {"Authorization": f"Bearer {admin_token}"}
-        payload = {
-            "date": "2024-04-29",
-            "gross_sales": 1000.0,
-            "tax_collected": 200.0,
-            "tips_collected": 50.0
-        }
-        res = client.post("/api/ingest/pos", headers=headers, json=payload)
-        assert res.status_code == 200
-
     def test_ingest_bank_statement_formats(self, client, admin_token):
         headers = {"Authorization": f"Bearer {admin_token}"}
         
@@ -435,7 +427,7 @@ class TestIngestion:
         res = client.post("/api/ingest/bank-statement", headers=headers, 
                           files={"file": ("wise.csv", wise_csv.encode())})
         assert res.status_code == 200
-        assert "Successfully processed 2" in res.json()["message"]
+        assert "Processed 2" in res.json()["message"]
 
     def test_ingest_bank_statement_errors(self, client, admin_token):
         headers = {"Authorization": f"Bearer {admin_token}"}

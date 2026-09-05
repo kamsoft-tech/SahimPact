@@ -11,18 +11,19 @@ from app.models.models import (
     Agreement, AgreementStatus, AgreementSignoff
 )
 from app.schemas.schemas import PartnerShareResponse, PartnerShareUpdate, PartnerCreate, PartnerRename
-from app.core.security import get_password_hash, get_current_company_id, get_current_active_user
+from app.core.security import get_password_hash, get_current_company_id, get_current_active_user, log_audit_event
 
 router = APIRouter()
 
 @router.get("/admin/shares", response_model=List[PartnerShareResponse])
 def get_partner_shares(db: Session = Depends(get_db), company_id: Optional[int] = Depends(get_current_company_id)):
     # Fetch all users who should have shares (Partners and Admins, but NOT Super Admins)
+    from app.models.models import UserCompanyLink
     query = db.query(User).filter(
         User.role != RoleEnum.SUPER_ADMIN
     )
     if company_id:
-        query = query.filter(User.company_id == company_id)
+        query = query.join(UserCompanyLink).filter(UserCompanyLink.company_id == company_id)
         
     users = query.all()
     
@@ -110,11 +111,11 @@ def update_partner_share(
             else:
                 raise HTTPException(status_code=400, detail="Company ID required")
 
-        if not company_id:
-             raise HTTPException(status_code=400, detail="Target user has no associated company")
-
-        if current_user.role != RoleEnum.SUPER_ADMIN and target_user.company_id != company_id:
-             raise HTTPException(status_code=403, detail="User does not belong to your company")
+        if current_user.role != RoleEnum.SUPER_ADMIN:
+             from app.models.models import UserCompanyLink
+             link = db.query(UserCompanyLink).filter(UserCompanyLink.user_id == target_user.id, UserCompanyLink.company_id == company_id).first()
+             if not link:
+                 raise HTTPException(status_code=403, detail="User does not belong to your company")
 
         # 3. Handle Agreement and Shares
         existing_agreement = db.query(Agreement).filter(
@@ -236,8 +237,9 @@ def update_partner_share(
             db.flush() # Get the ID without committing yet
 
         # 4. Create Signoffs
-        active_users = db.query(User).filter(
-            User.company_id == company_id,
+        from app.models.models import UserCompanyLink
+        active_users = db.query(User).join(UserCompanyLink).filter(
+            UserCompanyLink.company_id == company_id,
             User.is_active == True,
             or_(User.role == RoleEnum.COMPANY_ADMIN, User.role == RoleEnum.PARTNER)
         ).all()
@@ -254,6 +256,11 @@ def update_partner_share(
             db.add(signoff)
 
         db.commit()
+        
+        log_audit_event(
+            db, action="PROPOSE_AGREEMENT", user_id=current_user.id, company_id=company_id,
+            target_id=str(agreement.id), details={"target_user_id": user_id, "summary": agreement.change_summary}
+        )
 
         # 5. Return current (non-pending) share state
         share = db.query(PartnerShare).filter(PartnerShare.user_id == user_id, PartnerShare.company_id == company_id).first()
@@ -336,6 +343,11 @@ def update_my_share(
     db.commit()
     db.refresh(share)
     
+    log_audit_event(
+        db, action="UPDATE_CHARITY_SHARE", user_id=current_user.id, company_id=company_id,
+        details={"new_percentage": share.voluntary_charity_percentage}
+    )
+    
     share.partner_name = current_user.full_name or current_user.username
     return share
 
@@ -369,6 +381,11 @@ def create_new_partner(
     db.commit()
     db.refresh(new_share)
     
+    log_audit_event(
+        db, action="CREATE_PARTNER_SHARE", user_id=current_user.id, company_id=company_id,
+        target_id=str(new_share.id), details={"target_user_id": partner_data.user_id}
+    )
+    
     user = db.query(User).filter(User.id == partner_data.user_id).first()
     new_share.partner_name = user.full_name if user.full_name else user.username
     return new_share
@@ -386,13 +403,15 @@ def rename_partner(
         raise HTTPException(status_code=404, detail="User not found")
     
     if not company_id:
-        if current_user.role == RoleEnum.SUPER_ADMIN:
-            company_id = user.company_id
-        else:
-            raise HTTPException(status_code=400, detail="Company context required")
+        raise HTTPException(status_code=400, detail="Company context required")
             
     user.full_name = rename_data.name
     db.commit()
+    
+    log_audit_event(
+        db, action="RENAME_PARTNER", user_id=current_user.id, company_id=company_id,
+        target_id=str(user.id), details={"new_name": rename_data.name}
+    )
     
     share = db.query(PartnerShare).filter(PartnerShare.user_id == user_id, PartnerShare.company_id == company_id).first()
     if not share:

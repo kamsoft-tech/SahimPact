@@ -18,6 +18,7 @@ import {
     Activity
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -52,9 +53,11 @@ const Sidebar = ({ isOpen, onClose }) => {
 
     const menuItems = [
         { name: 'The Pulse', icon: Activity, path: '/pulse', roles: ['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN'] },
+        { name: 'Master Fund', icon: Wallet, path: '/master', roles: ['SUPER_ADMIN', 'MASTER_ADMIN'] },
         { name: 'Time Log', icon: Timer, path: '/timelog', roles: ['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN'] },
         { name: 'Ledger', icon: Wallet, path: '/ledger', roles: ['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN'] },
         { name: 'Charity Fund', icon: Heart, path: '/charity', roles: ['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN'] },
+        { name: 'Contracts', icon: ShieldCheck, path: '/contracts', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'] },
         { name: 'Partnerships', icon: Handshake, path: '/partnerships', roles: ['COMPANY_ADMIN', 'SUPER_ADMIN', 'PARTNER'] },
         { name: 'System Nexus', icon: Settings, path: '/config', roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'] },
     ];
@@ -90,9 +93,9 @@ const Sidebar = ({ isOpen, onClose }) => {
                             <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1.5 opacity-80">SahimPact v2</span>
                         </div>
                     </div>
-                    <button onClick={onClose} className="md:hidden text-text-muted hover:text-text-main">
+                    <Button variant="ghost" size="icon" onClick={onClose} className="md:hidden text-text-muted hover:text-text-main">
                         <X className="w-5 h-5" />
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Company Switcher (Multi-company support) */}
@@ -183,12 +186,13 @@ const Sidebar = ({ isOpen, onClose }) => {
                         >
                             <User className="w-4 h-4" /> Account Settings
                         </NavLink>
-                        <button 
+                        <Button 
+                            variant="ghost"
                             onClick={logout}
-                            className="w-full flex items-center gap-3 text-text-muted/60 hover:text-destructive px-4 py-3 hover:bg-destructive/5 transition-all duration-300 rounded-xl text-xs font-black uppercase tracking-widest"
+                            className="w-full flex justify-start items-center gap-3 text-text-muted/60 hover:text-destructive px-4 py-3 hover:bg-destructive/5 transition-all duration-300 rounded-xl text-xs font-black uppercase tracking-widest h-auto"
                         >
                             <LogOut className="w-4 h-4" /> Terminate Session
-                        </button>
+                        </Button>
                     </div>
 
                     <div className="mt-6 flex items-center justify-center gap-2 text-[8px] font-black text-text-muted/30 uppercase tracking-[0.3em]">

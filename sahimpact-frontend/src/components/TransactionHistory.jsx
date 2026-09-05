@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
     SelectContent,
@@ -132,10 +133,9 @@ const TransactionHistory = ({
                         <TableRow className="hover:bg-transparent border-border-muted/10">
                             {isAdmin && (
                                 <TableHead className="w-12 px-6">
-                                    <input 
-                                        type="checkbox" 
-                                        className="w-4 h-4 rounded-md border-border-muted bg-bg-base text-primary focus:ring-primary/20"
-                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                    <Checkbox 
+                                        className="rounded-md border-border-muted bg-bg-base"
+                                        onCheckedChange={handleSelectAll}
                                         checked={transactions.length > 0 && selectedTxs.length === transactions.length}
                                     />
                                 </TableHead>
@@ -153,11 +153,10 @@ const TransactionHistory = ({
                             <TableRow key={tx.id} className="hover:bg-primary/[0.02] border-border-muted/5 transition-colors group">
                                 {isAdmin && (
                                     <TableCell className="px-6">
-                                        <input 
-                                            type="checkbox" 
-                                            className="w-4 h-4 rounded-md border-border-muted bg-bg-base text-primary focus:ring-primary/20"
+                                        <Checkbox 
+                                            className="rounded-md border-border-muted bg-bg-base"
                                             checked={selectedTxs.includes(tx.id)}
-                                            onChange={() => handleSelectOne(tx.id)}
+                                            onCheckedChange={() => handleSelectOne(tx.id)}
                                         />
                                     </TableCell>
                                 )}

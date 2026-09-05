@@ -6,7 +6,7 @@ import io
 from app.db.database import get_db
 from app.schemas.schemas import TransactionCreate, JournalEntryCreate
 from app.services.journal_service import create_journal_transaction
-from app.models.models import Account, AccountTypeEnum, EntryTypeEnum
+from app.models.models import Account, AccountTypeEnum, EntryTypeEnum, Transaction, JournalEntry
 from app.api.endpoints.ledger import _get_or_create_account
 from pydantic import BaseModel
 
@@ -25,6 +25,9 @@ async def ingest_bank_statement(
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 
     content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="CSV file too large. Max 2MB.")
+
     try:
         decoded_content = content.decode("utf-8")
     except UnicodeDecodeError:
@@ -91,6 +94,10 @@ async def ingest_bank_statement(
 
             desc_parts = [row.get(dcol, "").strip() for dcol in desc_cols if row.get(dcol, "").strip()]
             desc = " | ".join(desc_parts) if desc_parts else "Bank Transaction"
+            
+            # Sanitize description to prevent CSV injection if exported later
+            if desc and desc[0] in ('=', '+', '-', '@', '\t', '\r'):
+                desc = "'" + desc
             
             status_col = get_col(['status'])
             if status_col and row.get(status_col, "").strip().upper() in ['REFUNDED', 'CANCELLED', 'FAILED']:

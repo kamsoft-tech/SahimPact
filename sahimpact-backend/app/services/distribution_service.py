@@ -56,7 +56,6 @@ def calculate_month_end_close(db: Session, admin_user_id: int, company_id: int, 
     cap_pool_pct = settings.capital_pool_percentage if settings and settings.capital_pool_percentage is not None else 0.50
     lab_pool_pct = settings.labour_pool_percentage if settings and settings.labour_pool_percentage is not None else 0.50
     charity_percentage = settings.charity_percentage if settings and settings.charity_percentage is not None else 0.06
-    labour_share_mode = settings.labour_share_mode if settings and settings.labour_share_mode else "time"
 
     contingency_pot_min = getattr(settings, 'contingency_pot_minimum', 10000.0) if settings else 10000.0
     contingency_allocation = 0.0
@@ -155,17 +154,14 @@ def calculate_month_end_close(db: Session, admin_user_id: int, company_id: int, 
         "distributions": []
     }
 
-    user_names = {u.id: (u.full_name if u.full_name else u.username) for u in db.query(User).filter(User.company_id == company_id).all()}
-
+    from app.models.models import UserCompanyLink
+    user_names = {u.id: (u.full_name if u.full_name else u.username) for u in db.query(User).join(UserCompanyLink).filter(UserCompanyLink.company_id == company_id).all()}
     for partner in partners:
         cap_pct = partner.capital_share_fixed / total_capital if total_capital > 0 and partner.capital_share_fixed else 0.0
         
         partner_logged_hours = partner_hours_map.get(partner.user_id, 0.0)
         
-        if labour_share_mode == "percentage":
-            lab_pct = partner.labor_share_variable / 100.0 if partner.labor_share_variable else 0.0
-        else:
-            lab_pct = partner_logged_hours / total_hours if total_hours > 0 else 0.0
+        lab_pct = partner.labor_share_variable / 100.0 if partner.labor_share_variable else 0.0
         
         vol_charity_pct = partner.voluntary_charity_percentage if partner.voluntary_charity_percentage else 0
 
@@ -193,6 +189,17 @@ def calculate_month_end_close(db: Session, admin_user_id: int, company_id: int, 
 
         reimbursement_amount = reimbursement_balances.get(partner.user_id, 0.0)
         final_total_payout = net_equity_payout + reimbursement_amount
+
+        # Master Fund Return Sweep
+        partner_user = db.query(User).filter(User.id == partner.user_id).first()
+        if partner_user and partner_user.role == RoleEnum.MASTER_ADMIN:
+            from app.services.master_service import roll_returns_back
+            from app.models.models import Company, CapitalPool
+            comp = db.query(Company).filter(Company.id == company_id).first()
+            if comp and comp.master_entity_id:
+                pool = db.query(CapitalPool).filter(CapitalPool.master_entity_id == comp.master_entity_id).first()
+                if pool:
+                    roll_returns_back(db, pool.id, company_id, final_total_payout)
 
         distribution_report["distributions"].append({
             "partner_user_id": partner.user_id,
@@ -374,7 +381,6 @@ def get_forecasted_shares(db: Session, company_id: Optional[int]):
     cap_pool_pct = 0.50
     lab_pool_pct = 0.50
     charity_percentage = 0.06
-    labour_share_mode = "time"
     contingency_pot_min = 10000.0
 
     if company_id:
@@ -383,7 +389,6 @@ def get_forecasted_shares(db: Session, company_id: Optional[int]):
             cap_pool_pct = settings.capital_pool_percentage if settings.capital_pool_percentage is not None else 0.50
             lab_pool_pct = settings.labour_pool_percentage if settings.labour_pool_percentage is not None else 0.50
             charity_percentage = settings.charity_percentage if settings.charity_percentage is not None else 0.06
-            labour_share_mode = settings.labour_share_mode if settings.labour_share_mode else "time"
             contingency_pot_min = getattr(settings, 'contingency_pot_minimum', 10000.0)
 
     contingency_allocation = 0.0
@@ -488,10 +493,7 @@ def get_forecasted_shares(db: Session, company_id: Optional[int]):
         cap_pct = partner.capital_share_fixed / total_capital if total_capital > 0 and partner.capital_share_fixed else 0.0
         partner_logged_hours = partner_hours_map.get(partner.user_id, 0.0)
         
-        if labour_share_mode == "percentage":
-            lab_pct = partner.labor_share_variable / 100.0 if partner.labor_share_variable else 0.0
-        else:
-            lab_pct = partner_logged_hours / total_hours if total_hours > 0 else 0.0
+        lab_pct = partner.labor_share_variable / 100.0 if partner.labor_share_variable else 0.0
         
         vol_charity_pct = partner.voluntary_charity_percentage or 0
         

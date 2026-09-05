@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.db.database import get_db
-from app.models.models import Company, User, RoleEnum
+from app.models.models import Company, User, RoleEnum, UserCompanyLink
 from app.schemas.schemas import CompanyResponse, CompanyCreate, CompanyAdminCreate, UserResponse, CompanyUpdate, UserRoleUpdate
-from app.core.security import require_super_admin_role, get_password_hash, require_admin_role, require_partner_role
+from app.core.security import require_super_admin_role, get_password_hash, require_admin_role, require_partner_role, get_current_company_id
+from fastapi import Request
 
 
 router = APIRouter(tags=["Companies (Super Admin)"])
@@ -16,7 +17,9 @@ def list_orphaned_partners(
     claims: dict = Depends(require_super_admin_role)
 ):
     """List all users with RoleEnum.PARTNER who are not linked to any company."""
-    orphans = db.query(User).filter(User.company_id == None, User.role == RoleEnum.PARTNER).all()
+    # Find users not in UserCompanyLink
+    linked_user_ids = [l.user_id for l in db.query(UserCompanyLink).all()]
+    orphans = db.query(User).filter(User.id.notin_(linked_user_ids), User.role == RoleEnum.PARTNER).all()
     return orphans
 
 @router.get("/companies", response_model=List[CompanyResponse])
@@ -29,7 +32,8 @@ def get_all_companies(
     # Manual mapping to include admin info
     result = []
     for company in companies:
-        admin = db.query(User).filter(User.company_id == company.id, User.role == RoleEnum.COMPANY_ADMIN).first()
+        admin_link = db.query(UserCompanyLink).join(User).filter(UserCompanyLink.company_id == company.id, User.role == RoleEnum.COMPANY_ADMIN).first()
+        admin = admin_link.user if admin_link else None
         comp_dict = company.__dict__.copy()
         if admin:
             comp_dict["admin_id"] = admin.id
@@ -57,19 +61,21 @@ def create_company(
 
 @router.get("/companies/{company_id}", response_model=CompanyResponse)
 def get_company(
+    request: Request,
     company_id: int,
     db: Session = Depends(get_db),
     claims: dict = Depends(require_partner_role)
 ):
     """Get a specific company."""
-    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and claims.get("company_id") != company_id:
+    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and get_current_company_id(request, claims) != company_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this company")
         
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
         
-    admin = db.query(User).filter(User.company_id == company.id, User.role == RoleEnum.COMPANY_ADMIN).first()
+    admin_link = db.query(UserCompanyLink).join(User).filter(UserCompanyLink.company_id == company.id, User.role == RoleEnum.COMPANY_ADMIN).first()
+    admin = admin_link.user if admin_link else None
     comp_dict = company.__dict__.copy()
     if admin:
         comp_dict["admin_id"] = admin.id
@@ -78,13 +84,14 @@ def get_company(
 
 @router.put("/companies/{company_id}", response_model=CompanyResponse)
 def update_company(
+    request: Request,
     company_id: int,
     company_data: CompanyUpdate,
     db: Session = Depends(get_db),
     claims: dict = Depends(require_admin_role)
 ):
     """Update a specific company."""
-    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and claims.get("company_id") != company_id:
+    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and get_current_company_id(request, claims) != company_id:
         raise HTTPException(status_code=403, detail="Not authorized to edit this company")
         
     company = db.query(Company).filter(Company.id == company_id).first()
@@ -100,7 +107,8 @@ def update_company(
     db.commit()
     db.refresh(company)
     
-    admin = db.query(User).filter(User.company_id == company.id, User.role == RoleEnum.COMPANY_ADMIN).first()
+    admin_link = db.query(UserCompanyLink).join(User).filter(UserCompanyLink.company_id == company.id, User.role == RoleEnum.COMPANY_ADMIN).first()
+    admin = admin_link.user if admin_link else None
     comp_dict = company.__dict__.copy()
     if admin:
         comp_dict["admin_id"] = admin.id
@@ -130,7 +138,6 @@ def create_company_admin(
         
     new_admin = User(
         username=admin_data.username,
-        company_id=company_id,
         hashed_password=get_password_hash(admin_data.password),
         role=RoleEnum.COMPANY_ADMIN
     )
@@ -139,25 +146,29 @@ def create_company_admin(
         raise HTTPException(status_code=400, detail="Cannot create a company admin with Super Admin role")
 
     db.add(new_admin)
+    db.flush()
+    db.add(UserCompanyLink(user_id=new_admin.id, company_id=company_id))
     db.commit()
     db.refresh(new_admin)
     return new_admin
 
 @router.get("/companies/{company_id}/users", response_model=List[UserResponse])
 def get_company_users(
+    request: Request,
     company_id: int,
     db: Session = Depends(get_db),
     claims: dict = Depends(require_admin_role)
 ):
     """List all users for a specific company."""
-    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and claims.get("company_id") != company_id:
+    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and get_current_company_id(request, claims) != company_id:
         raise HTTPException(status_code=403, detail="Not authorized to view users for this company")
     
-    users = db.query(User).filter(User.company_id == company_id).all()
+    users = db.query(User).join(UserCompanyLink).filter(UserCompanyLink.company_id == company_id).all()
     return users
 
 @router.put("/companies/{company_id}/users/{user_id}/role", response_model=UserResponse)
 def update_user_role(
+    request: Request,
     company_id: int,
     user_id: int,
     role_data: UserRoleUpdate,
@@ -165,10 +176,10 @@ def update_user_role(
     claims: dict = Depends(require_admin_role)
 ):
     """Update a user's role."""
-    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and claims.get("company_id") != company_id:
+    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and get_current_company_id(request, claims) != company_id:
         raise HTTPException(status_code=403, detail="Not authorized to manage users for this company")
         
-    user = db.query(User).filter(User.id == user_id, User.company_id == company_id).first()
+    user = db.query(User).join(UserCompanyLink).filter(User.id == user_id, UserCompanyLink.company_id == company_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -177,7 +188,8 @@ def update_user_role(
         
     user.role = role_data.role
     if user.role == RoleEnum.SUPER_ADMIN:
-         user.company_id = None # Safety measure
+        # For super admin, we remove all links
+        db.query(UserCompanyLink).filter(UserCompanyLink.user_id == user.id).delete()
 
     db.commit()
     db.refresh(user)
@@ -185,16 +197,17 @@ def update_user_role(
 
 @router.delete("/companies/{company_id}/users/{user_id}", status_code=204)
 def deactivate_user(
+    request: Request,
     company_id: int,
     user_id: int,
     db: Session = Depends(get_db),
     claims: dict = Depends(require_admin_role)
 ):
     """Deactivate a user (soft delete)."""
-    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and claims.get("company_id") != company_id:
+    if claims.get("role") != RoleEnum.SUPER_ADMIN.value and get_current_company_id(request, claims) != company_id:
         raise HTTPException(status_code=403, detail="Not authorized to manage users for this company")
         
-    user = db.query(User).filter(User.id == user_id, User.company_id == company_id).first()
+    user = db.query(User).join(UserCompanyLink).filter(User.id == user_id, UserCompanyLink.company_id == company_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -246,11 +259,12 @@ def adopt_partner(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
         
-    user = db.query(User).filter(User.id == user_id, User.company_id == None).first()
+    linked_user_ids = [l.user_id for l in db.query(UserCompanyLink).all()]
+    user = db.query(User).filter(User.id == user_id, User.id.notin_(linked_user_ids)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Orphaned user not found or already assigned")
         
-    user.company_id = company_id
+    db.add(UserCompanyLink(user_id=user.id, company_id=company_id))
     db.commit()
     db.refresh(user)
     return user

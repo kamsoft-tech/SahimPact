@@ -14,6 +14,8 @@ import Account from './pages/Account';
 import Login from './pages/Login';
 import TimeLog from './pages/TimeLog';
 import CharityManagement from './pages/CharityManagement';
+import MasterDashboard from './pages/MasterDashboard';
+import Contracts from './pages/Contracts';
 import CompanySelector from './pages/CompanySelector';
 import { useAuth } from './context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -82,6 +84,16 @@ const App = () => {
                         <Route path="/charity" element={
                             <ProtectedRoute allowedRoles={['PARTNER', 'COMPANY_ADMIN', 'SUPER_ADMIN']}>
                                 <CharityManagement />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/master" element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MASTER_ADMIN']}>
+                                <MasterDashboard />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/contracts" element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
+                                <Contracts />
                             </ProtectedRoute>
                         } />
                         <Route path="/account" element={<Account />} />

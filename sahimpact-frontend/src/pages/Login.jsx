@@ -110,10 +110,11 @@ const Login = () => {
                             </div>
                             <div className="grid grid-cols-1 gap-3">
                                 {pendingCompanies.map(company => (
-                                    <button
+                                    <Button
                                         key={company.id}
+                                        variant="outline"
                                         onClick={() => handleSelectCompany(company.id)}
-                                        className="group flex items-center justify-between p-4 bg-bg-base border border-border-muted/50 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left"
+                                        className="w-full h-auto group flex items-center justify-between p-4 bg-bg-base border-border-muted/50 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left"
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-lg bg-bg-surface flex items-center justify-center border border-border-muted/20 group-hover:bg-primary/10 transition-colors">
@@ -125,7 +126,7 @@ const Login = () => {
                                             </div>
                                         </div>
                                         <CheckCircle2 className="w-5 h-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </button>
+                                    </Button>
                                 ))}
                             </div>
                             <Button 
@@ -162,7 +163,7 @@ const Login = () => {
                                         <FormItem>
                                             <div className="flex items-center justify-between">
                                                 <FormLabel className="text-[10px] font-black uppercase tracking-widest text-text-muted">Security Key</FormLabel>
-                                                <button type="button" className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary">Forgot Password?</button>
+                                                <Button variant="ghost" type="button" className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary h-auto p-0">Forgot Password?</Button>
                                             </div>
                                             <FormControl>
                                                 <div className="relative group">

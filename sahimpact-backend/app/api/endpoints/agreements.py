@@ -10,7 +10,7 @@ from app.models.models import (
     User, RoleEnum, GlobalSettings, PartnerShare
 )
 from app.schemas.schemas import AgreementResponse, SignoffActionRequest
-from app.core.security import get_current_company_id, get_current_active_user
+from app.core.security import get_current_company_id, get_current_active_user, log_audit_event
 from app.services.distribution_service import calculate_month_end_close
 
 router = APIRouter()
@@ -82,9 +82,17 @@ def sign_agreement(
         signoff.signed_at = datetime.now(timezone.utc)
         agreement.status = AgreementStatus.REJECTED
         db.commit()
+        log_audit_event(
+            db, action="AGREEMENT_REJECTED", user_id=current_user.id, company_id=company_id,
+            target_id=str(agreement.id)
+        )
         return {"message": "Agreement rejected"}
 
     db.commit()
+    log_audit_event(
+        db, action="AGREEMENT_APPROVED", user_id=current_user.id, company_id=company_id,
+        target_id=str(agreement.id)
+    )
     
     # Check if all signatures are in
     check_and_apply_agreement(db, agreement)
@@ -191,6 +199,10 @@ def check_and_apply_agreement(db: Session, agreement: Agreement):
         agreement.effective_at = datetime.now(timezone.utc)
         
         db.commit()
+        log_audit_event(
+            db, action="AGREEMENT_APPLIED", user_id=agreement.proposed_by_id, company_id=agreement.company_id,
+            target_id=str(agreement.id), details={"type": agreement.agreement_type.value if agreement.agreement_type else "PARAMETER_CHANGE"}
+        )
 
 @router.post("/agreements/propose-close")
 def propose_period_close(
@@ -242,4 +254,8 @@ def propose_period_close(
         db.add(signoff)
 
     db.commit()
+    log_audit_event(
+        db, action="PROPOSE_PERIOD_CLOSE", user_id=current_user.id, company_id=company_id,
+        target_id=str(new_agreement.id), details={"period_name": period_name, "negligent_user_id": negligent_user_id}
+    )
     return {"message": "Period close proposed successfully", "agreement_id": new_agreement.id}

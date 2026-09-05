@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 const NotificationContext = createContext();
 
@@ -53,9 +55,9 @@ const Toast = ({ message, type, onClose }) => {
         <div className={`flex items-center gap-3 px-5 py-3 rounded-xl border shadow-2xl animate-slide-in ${styles[type] || styles.info}`}>
             <span className="material-symbols-outlined text-xl">{icons[type] || icons.info}</span>
             <p className="font-medium text-sm">{message}</p>
-            <button onClick={onClose} className="ml-4 opacity-50 hover:opacity-100 transition-opacity">
-                <span className="material-symbols-outlined text-lg">close</span>
-            </button>
+            <Button variant="ghost" size="icon" onClick={onClose} className="ml-4 opacity-50 hover:opacity-100 transition-opacity w-6 h-6 p-0 hover:bg-transparent">
+                <X className="w-4 h-4" />
+            </Button>
         </div>
     );
 };

@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 import shutil
 import os
+import filetype
 from uuid import uuid4
 from app.db.database import get_db
 from app.schemas.schemas import TransactionCreate, JournalEntryCreate
 from app.services.journal_service import create_journal_transaction
-from app.models.models import Account, AccountTypeEnum, EntryTypeEnum, ExpenseReceipt
+from app.models.models import Account, AccountTypeEnum, EntryTypeEnum, ExpenseReceipt, Transaction
+from fastapi.responses import FileResponse
 
 from app.core.security import require_partner_role, get_current_company_id
 from app.api.endpoints.ledger import _get_or_create_account
@@ -23,10 +25,8 @@ def get_expenses(
     company_id: int = Depends(get_current_company_id)
 ):
     """List expenses for the current company."""
-    # This is a simplified view. In a real app, you'd join with Transactions and Receipts.
-    receipts = db.query(ExpenseReceipt).all()
-    # Filter by company if possible (ExpenseReceipt doesn't have company_id, but Transactions do)
-    # For now, return all for simplicity or add filtering
+    # Join with Transaction to filter by company_id
+    receipts = db.query(ExpenseReceipt).join(Transaction).filter(Transaction.company_id == company_id).all()
     return receipts
 
 @router.post("")
@@ -86,12 +86,20 @@ def create_expense(
     # 3. Handle Receipt Upload
     receipt_url = None
     if receipt_file:
-        file_ext = receipt_file.filename.split(".")[-1]
+        file_bytes = receipt_file.file.read()
+        if len(file_bytes) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
+            
+        kind = filetype.guess(file_bytes)
+        if kind is None or kind.mime not in ["image/jpeg", "image/png", "application/pdf"]:
+            raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, PDF allowed.")
+            
+        file_ext = kind.extension
         unique_filename = f"{uuid4()}.{file_ext}"
         filepath = os.path.join(UPLOAD_DIR, unique_filename)
         
         with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(receipt_file.file, buffer)
+            buffer.write(file_bytes)
         
         receipt_url = filepath
         
@@ -100,3 +108,30 @@ def create_expense(
         db.commit()
 
     return {"message": "Expense logged successfully", "transaction_id": db_transaction.id, "receipt_url": receipt_url, "is_out_of_pocket": is_out_of_pocket}
+
+@router.get("/receipts/{receipt_id}")
+def download_receipt(
+    receipt_id: int,
+    db: Session = Depends(get_db),
+    claims: dict = Depends(require_partner_role),
+    company_id: int = Depends(get_current_company_id)
+):
+    """Download a receipt securely, enforcing tenant isolation and Content-Disposition."""
+    receipt = db.query(ExpenseReceipt).join(Transaction).filter(
+        ExpenseReceipt.id == receipt_id,
+        Transaction.company_id == company_id
+    ).first()
+    
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+        
+    filepath = receipt.receipt_url
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+        
+    filename = os.path.basename(filepath)
+    return FileResponse(
+        path=filepath, 
+        filename=filename, 
+        content_disposition_type="attachment"
+    )

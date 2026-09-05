@@ -4,7 +4,7 @@ from typing import Optional
 from app.db.database import get_db
 from app.models.models import GlobalSettings, User, PartnerShare
 from app.schemas.schemas import GlobalSettingsResponse, GlobalSettingsUpdate
-from app.core.security import require_partner_role, get_current_company_id, get_current_active_user
+from app.core.security import require_partner_role, get_current_company_id, get_current_active_user, require_admin_role
 from datetime import datetime, timezone
 
 router = APIRouter()
@@ -12,12 +12,17 @@ router = APIRouter()
 @router.get("/settings", response_model=GlobalSettingsResponse)
 def get_settings(db: Session = Depends(get_db), company_id: Optional[int] = Depends(get_current_company_id)):
     if not company_id:
-        # Return generic system defaults if no company context
         return GlobalSettings(
             charity_percentage=0.06,
             currency_symbol="£",
             primary_color="#2EDEA4",
-            secondary_color="#F59E0B"
+            secondary_color="#F59E0B",
+            partnership_mode="both",
+            labour_share_mode="time",
+            is_setup_complete=False,
+            capital_pool_percentage=0.50,
+            labour_pool_percentage=0.50,
+            contingency_pot_minimum=10000.0
         )
 
     settings = db.query(GlobalSettings).filter(GlobalSettings.company_id == company_id).first()
@@ -43,7 +48,8 @@ def update_settings(
     settings_update: GlobalSettingsUpdate, 
     db: Session = Depends(get_db), 
     company_id: Optional[int] = Depends(get_current_company_id), 
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    claims: dict = Depends(require_admin_role)
 ):
     if not company_id:
         raise HTTPException(status_code=400, detail="Company ID required")
@@ -114,8 +120,9 @@ def update_settings(
         db.refresh(agreement)
 
     # Create signoffs for all active admins and partners
-    active_users = db.query(User).filter(
-        User.company_id == company_id,
+    from app.models.models import UserCompanyLink
+    active_users = db.query(User).join(UserCompanyLink).filter(
+        UserCompanyLink.company_id == company_id,
         User.is_active == True,
         or_(User.role == RoleEnum.COMPANY_ADMIN, User.role == RoleEnum.PARTNER)
     ).all()
@@ -137,7 +144,25 @@ def update_settings(
 
     db.commit()
     
+    from app.core.security import log_audit_event
+    log_audit_event(
+        db, action="PROPOSE_SETTINGS_CHANGE", user_id=current_user.id, company_id=company_id,
+        target_id=str(agreement.id), details={"summary": provided_summary}
+    )
+    
     # Return the current (un-updated) settings so the UI knows nothing changed yet in the active state
     if not current_settings:
-        return GlobalSettings(company_id=company_id)
+        return GlobalSettings(
+            company_id=company_id,
+            charity_percentage=0.06,
+            currency_symbol="£",
+            primary_color="#2EDEA4",
+            secondary_color="#F59E0B",
+            partnership_mode="both",
+            labour_share_mode="time",
+            is_setup_complete=False,
+            capital_pool_percentage=0.50,
+            labour_pool_percentage=0.50,
+            contingency_pot_minimum=10000.0
+        )
     return current_settings

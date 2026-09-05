@@ -80,7 +80,16 @@ def trigger_month_end_close(db: Session = Depends(get_db), claims: dict = Depend
     admin_id = claims.get("user_id", 1) # Fallback to 1 if not in claims
     if company_id is None:
         raise HTTPException(status_code=400, detail="Company ID is required for month-end close.")
-    return calculate_month_end_close(db, admin_id, company_id)
+        
+    result = calculate_month_end_close(db, admin_id, company_id)
+    
+    from app.core.security import log_audit_event
+    log_audit_event(
+        db, action="RUN_DISTRIBUTION", user_id=admin_id, company_id=company_id,
+        details={"net_profit": result.get("net_profit"), "distributable_profit": result.get("distributable_profit")}
+    )
+    
+    return result
 
 @router.get("/reports", response_model=List[MonthlyReportResponse])
 def get_monthly_reports(db: Session = Depends(get_db), company_id: Optional[int] = Depends(get_current_company_id)):
