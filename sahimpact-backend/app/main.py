@@ -7,6 +7,15 @@ from .api.endpoints.ingestion import router as ingestion_router
 from .api.endpoints.expenses import router as expenses_router
 from .api.endpoints.settings import router as settings_router
 from .api.endpoints.shares import router as shares_router
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from .api.endpoints.journal import router as journal_router
+from .api.endpoints.distribution import router as distribution_router
+from .api.endpoints.ingestion import router as ingestion_router
+from .api.endpoints.expenses import router as expenses_router
+from .api.endpoints.settings import router as settings_router
+from .api.endpoints.shares import router as shares_router
 from .api.endpoints.auth import router as auth_router
 from .api.endpoints.ledger import router as ledger_router
 from .api.endpoints.time_tracking import router as time_tracking_router
@@ -14,6 +23,8 @@ from .api.endpoints.companies import router as companies_router
 from .api.endpoints.agreements import router as agreements_router
 from .api.endpoints.master import router as master_router
 from .api.endpoints.contracts import router as contracts_router
+from .api.endpoints.signatures import router as signatures_router
+from .api.endpoints.templates import router as templates_router
 from app.db.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models.models import User, RoleEnum
@@ -94,6 +105,7 @@ app.include_router(ledger_router, prefix="/api")
 app.include_router(time_tracking_router, prefix="/api/time")
 app.include_router(companies_router, prefix="/api")
 app.include_router(agreements_router, prefix="/api")
-app.include_router(master_router, prefix="/api")
-app.include_router(contracts_router, prefix="/api")
-
+app.include_router(master_router, prefix="/api", tags=["Master Fund"])
+app.include_router(contracts_router, prefix="/api", tags=["Contracts"])
+app.include_router(signatures_router, prefix="/api/signatures", tags=["Signatures"])
+app.include_router(templates_router, prefix="/api/templates", tags=["Templates"])

@@ -102,21 +102,16 @@ def get_current_user_claims(claims: dict = Depends(get_unverified_user_claims)):
         )
     return claims
 
-def require_partner_role(request: Request, claims: dict = Depends(get_current_user_claims)):
+def require_partner_role(request: Request, db: Session = Depends(get_db), claims: dict = Depends(get_current_user_claims)):
     role = claims.get("role")
     user_id = claims.get("user_id")
     
-    from app.db.database import SessionLocal
     from app.models.models import Company, User, UserCompanyLink
     
-    with SessionLocal() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user or not user.is_active:
-            raise HTTPException(status_code=403, detail="Your account is inactive.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Your account is inactive.")
 
-        if role == RoleEnum.MASTER_ADMIN.value:
-            return claims # Master admins can access if the endpoint allows them
-            
         if role == RoleEnum.SUPER_ADMIN.value:
             return claims
 
@@ -137,21 +132,16 @@ def require_partner_role(request: Request, claims: dict = Depends(get_current_us
 
     return claims
 
-def require_admin_role(request: Request, claims: dict = Depends(get_current_user_claims)):
+def require_admin_role(request: Request, db: Session = Depends(get_db), claims: dict = Depends(get_current_user_claims)):
     role = claims.get("role")
     user_id = claims.get("user_id")
     
-    from app.db.database import SessionLocal
     from app.models.models import Company, User, UserCompanyLink
     
-    with SessionLocal() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user or not user.is_active:
-            raise HTTPException(status_code=403, detail="Your account is inactive.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Your account is inactive.")
 
-        if role == RoleEnum.MASTER_ADMIN.value:
-            return claims
-            
         if role == RoleEnum.SUPER_ADMIN.value:
             return claims
             
@@ -174,20 +164,18 @@ def require_admin_role(request: Request, claims: dict = Depends(get_current_user
 
     return claims
 
-def require_super_admin_role(claims: dict = Depends(get_current_user_claims)):
+def require_super_admin_role(db: Session = Depends(get_db), claims: dict = Depends(get_current_user_claims)):
     role = claims.get("role")
     user_id = claims.get("user_id")
     
     if role != RoleEnum.SUPER_ADMIN.value:
         raise HTTPException(status_code=403, detail="Super Admin permissions required")
     
-    from app.db.database import SessionLocal
     from app.models.models import User
     
-    with SessionLocal() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user or not user.is_active:
-            raise HTTPException(status_code=403, detail="Super Admin account is inactive or deleted.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Super Admin account is inactive or deleted.")
             
     return claims
 
@@ -195,8 +183,8 @@ def require_master_admin_role(claims: dict = Depends(get_current_user_claims)):
     role = claims.get("role")
     user_id = claims.get("user_id")
     
-    if role not in [RoleEnum.MASTER_ADMIN.value, RoleEnum.SUPER_ADMIN.value]:
-        raise HTTPException(status_code=403, detail="Master Admin permissions required")
+    if role not in [RoleEnum.SUPER_ADMIN.value]:
+        raise HTTPException(status_code=403, detail="Super Admin permissions required")
         
     from app.db.database import SessionLocal
     from app.models.models import User
@@ -208,7 +196,7 @@ def require_master_admin_role(claims: dict = Depends(get_current_user_claims)):
             
     return claims
 
-def get_current_company_id(request: Request, claims: dict = Depends(get_current_user_claims)):
+def get_current_company_id(request: Request, db: Session = Depends(get_db), claims: dict = Depends(get_current_user_claims)):
     header_company_id = request.headers.get("X-Company-ID")
     target_company_id = int(header_company_id) if header_company_id and header_company_id.isdigit() else claims.get("company_id")
     role = claims.get("role")
@@ -218,21 +206,19 @@ def get_current_company_id(request: Request, claims: dict = Depends(get_current_
         raise HTTPException(status_code=400, detail="X-Company-ID header is required")
 
     if target_company_id:
-        from app.db.database import SessionLocal
         from app.models.models import Company, User, UserCompanyLink
-        with SessionLocal() as db:
-            company = db.query(Company).filter(Company.id == target_company_id).first()
-            if not company or not company.is_active:
-                if request.method not in ["GET", "HEAD", "OPTIONS"]:
-                    raise HTTPException(status_code=403, detail="Company account is inactive and in read-only mode.")
-            
-            if role != RoleEnum.SUPER_ADMIN.value and role != RoleEnum.MASTER_ADMIN.value:
-                user = db.query(User).filter(User.id == user_id).first()
-                if not user:
-                    raise HTTPException(status_code=403, detail="Access denied")
-                link = db.query(UserCompanyLink).filter(UserCompanyLink.user_id == user_id, UserCompanyLink.company_id == target_company_id).first()
-                if not link:
-                    raise HTTPException(status_code=403, detail="Access denied. You do not belong to this company.")
+        company = db.query(Company).filter(Company.id == target_company_id).first()
+        if not company or not company.is_active:
+            if request.method not in ["GET", "HEAD", "OPTIONS"]:
+                raise HTTPException(status_code=403, detail="Company account is inactive and in read-only mode.")
+        
+        if role != RoleEnum.SUPER_ADMIN.value:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise HTTPException(status_code=403, detail="Access denied")
+            link = db.query(UserCompanyLink).filter(UserCompanyLink.user_id == user_id, UserCompanyLink.company_id == target_company_id).first()
+            if not link:
+                raise HTTPException(status_code=403, detail="Access denied. You do not belong to this company.")
 
     return target_company_id
 

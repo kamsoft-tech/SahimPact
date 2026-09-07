@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # Setup PostgreSQL Database Connection
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/sahimpact")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sahimpact.db")
 
 engine_args = {}
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):

@@ -1,8 +1,8 @@
-"""initial
+"""Add pluggable signing models
 
-Revision ID: 88d2cc2fff38
-Revises: 
-Create Date: 2026-09-04 12:59:33.406770
+Revision ID: 6e9d55a8b20e
+Revises: ed25c6be6cac
+Create Date: 2026-09-07 11:03:27.018235
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '88d2cc2fff38'
-down_revision: Union[str, Sequence[str], None] = None
+revision: str = '6e9d55a8b20e'
+down_revision: Union[str, Sequence[str], None] = 'ed25c6be6cac'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1075,11 +1075,12 @@ const Partnerships = () => {
                                         </div>
                                         <Badge className={cn(
                                             "px-2 py-0.5 font-black text-[8px] uppercase tracking-widest rounded-md",
+                                            ag.status === 'APPROVED' && ag.envelope_status !== 'COMPLETED' ? 'bg-secondary text-white' : 
                                             ag.status === 'APPROVED' ? 'bg-primary text-on-primary' : 
                                             ag.status === 'REJECTED' ? 'bg-destructive text-white' : 
                                             'bg-bg-base text-text-muted'
                                         )}>
-                                            {ag.status}
+                                            {ag.status === 'APPROVED' && ag.envelope_status !== 'COMPLETED' ? ag.envelope_status : ag.status}
                                         </Badge>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px]">
@@ -1127,9 +1128,10 @@ const Partnerships = () => {
                         <div className="flex items-center gap-3 mb-2">
                             <Badge className={cn(
                                 "px-3 py-1 font-black tracking-widest uppercase rounded-full text-[9px]",
+                                viewingAgreement?.status === 'APPROVED' && viewingAgreement?.envelope_status !== 'COMPLETED' ? 'bg-secondary/20 text-secondary border-secondary/20' : 
                                 viewingAgreement?.status === 'APPROVED' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-destructive/20 text-destructive border-destructive/20'
                             )}>
-                                {viewingAgreement?.status}
+                                {viewingAgreement?.status === 'APPROVED' && viewingAgreement?.envelope_status !== 'COMPLETED' ? viewingAgreement?.envelope_status : viewingAgreement?.status}
                             </Badge>
                             <span className="text-[10px] text-text-muted font-black uppercase tracking-widest">
                                 Agreement #{viewingAgreement?.id} • {viewingAgreement && new Date(viewingAgreement.created_at).toLocaleString()}
@@ -1227,7 +1229,7 @@ const Partnerships = () => {
                                 </div>
                             </div>
 
-                            {viewingAgreement?.status === 'APPROVED' && viewingAgreement.effective_at && (
+                            {viewingAgreement?.status === 'EXECUTED' && viewingAgreement.effective_at && (
                                 <div className="p-6 bg-primary/5 border border-primary/10 rounded-2xl flex items-center gap-4">
                                     <div className="p-3 bg-primary/10 rounded-xl text-primary">
                                         <Fingerprint className="w-6 h-6" />
@@ -1237,6 +1239,61 @@ const Partnerships = () => {
                                         <p className="text-xs font-bold text-text-muted leading-tight">
                                             This agreement was finalized and applied to the protocol on {new Date(viewingAgreement.effective_at).toLocaleString()}.
                                         </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewingAgreement?.envelope_id && (
+                                <div className="bg-bg-base/40 rounded-2xl p-6 border border-border-muted/10">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted mb-4 flex items-center gap-2">
+                                        <FileSignature className="w-3 h-3" /> Electronic Signature Tracking
+                                    </h4>
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Badge variant="outline" className="uppercase text-[9px] font-black tracking-widest">
+                                                    Provider: {viewingAgreement.envelope_provider}
+                                                </Badge>
+                                                <Badge className="bg-secondary text-white uppercase text-[9px] font-black tracking-widest">
+                                                    Status: {viewingAgreement.envelope_status}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-text-muted font-medium">Ref: {viewingAgreement.envelope_provider_ref}</p>
+                                        </div>
+                                        {viewingAgreement.envelope_provider === 'MANUAL' && viewingAgreement.envelope_status !== 'COMPLETED' && (
+                                            <div className="flex flex-col gap-2">
+                                                <Button size="sm" variant="outline" className="text-xs font-black uppercase tracking-widest rounded-lg" asChild>
+                                                    <a href={`/api/signatures/${viewingAgreement.envelope_id}/download`} target="_blank" rel="noopener noreferrer">Download PDF</a>
+                                                </Button>
+                                                <div className="relative">
+                                                    <input 
+                                                        type="file" 
+                                                        id="upload-signed-pdf"
+                                                        accept="application/pdf"
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files[0];
+                                                            if (!file) return;
+                                                            const formData = new FormData();
+                                                            formData.append('file', file);
+                                                            try {
+                                                                await axios.post(`/api/signatures/${viewingAgreement.envelope_id}/upload`, formData, {
+                                                                    headers: { 'Content-Type': 'multipart/form-data' }
+                                                                });
+                                                                showNotification('Signed PDF uploaded successfully.', 'success');
+                                                                fetchData();
+                                                                setViewingAgreement(null);
+                                                            } catch (err) {
+                                                                showNotification('Failed to upload signed PDF.', 'error');
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Button size="sm" className="w-full bg-primary text-on-primary text-xs font-black uppercase tracking-widest rounded-lg pointer-events-none">
+                                                        Upload Signed PDF
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}

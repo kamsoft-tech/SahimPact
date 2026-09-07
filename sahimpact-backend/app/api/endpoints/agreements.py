@@ -12,6 +12,11 @@ from app.models.models import (
 from app.schemas.schemas import AgreementResponse, SignoffActionRequest
 from app.core.security import get_current_company_id, get_current_active_user, log_audit_event
 from app.services.distribution_service import calculate_month_end_close
+from app.models.signatures import SigningEnvelope, EnvelopeStatus
+from app.services.signing.manager import get_signing_provider
+from app.models.templates import DocumentSection, CompanyDocumentSection, CompanySectionSelection
+import io
+from xhtml2pdf import pisa
 
 router = APIRouter()
 
@@ -39,7 +44,7 @@ def get_agreement_history(
 ):
     agreements = db.query(Agreement).filter(
         Agreement.company_id == company_id
-    ).order_by(Agreement.created_at.desc()).all()
+    ).order_by(Agreement.updated_at.desc()).all()
     
     return [enrich_agreement(db, a) for a in agreements]
 
@@ -113,9 +118,12 @@ def enrich_agreement(db: Session, agreement: Agreement):
         "period_name": agreement.period_name,
         "change_summary": agreement.change_summary,
         "status": agreement.status,
-        "created_at": agreement.created_at,
         "effective_at": agreement.effective_at,
-        "signoffs": []
+        "signoffs": [],
+        "envelope_id": agreement.envelope.id if agreement.envelope else None,
+        "envelope_status": agreement.envelope.status if agreement.envelope else None,
+        "envelope_provider": agreement.envelope.provider if agreement.envelope else None,
+        "envelope_provider_ref": agreement.envelope.provider_ref if agreement.envelope else None
     }
     
     for s in agreement.signoffs:
@@ -150,59 +158,168 @@ def check_and_apply_agreement(db: Session, agreement: Agreement):
     
     # If every active user has approved
     if all(uid in approved_user_ids for uid in active_user_ids):
-        if agreement.agreement_type == AgreementType.PERIOD_CLOSE:
-            # 0. Execute Month-End Close Logic
-            calculate_month_end_close(
-                db, 
-                admin_user_id=agreement.proposed_by_id, 
-                company_id=agreement.company_id,
-                negligent_user_id=agreement.negligent_user_id
-            )
-        else:
-            # 1. Apply Settings
-            settings = db.query(GlobalSettings).filter(
-                GlobalSettings.company_id == agreement.company_id
+        # Mark Agreement as Approved
+        agreement.status = AgreementStatus.APPROVED
+        db.commit()
+        
+        # Trigger E-Signature flow
+        provider_service = get_signing_provider(db, agreement.company_id)
+        
+        # Real PDF generation
+        contract_pdf_bytes = generate_agreement_pdf_bytes(db, agreement)
+                
+        # Prepare signers list
+        signers = []
+        for user in active_users:
+            signers.append({"name": user.full_name or user.username, "email": user.email or f"{user.username}@example.com", "role": "signer"})
+            
+        result = provider_service.create_envelope(agreement.id, contract_pdf_bytes, signers)
+        
+        envelope = SigningEnvelope(
+            agreement_id=agreement.id,
+            provider=result.get("provider", "MANUAL").upper(),
+            provider_ref=result.get("provider_ref"),
+            status=result.get("status", EnvelopeStatus.SENT),
+            audit_log=[{"event": "ENVELOPE_CREATED", "provider_ref": result.get("provider_ref")}]
+        )
+        db.add(envelope)
+        db.commit()
+        
+        log_audit_event(
+            db, action="AGREEMENT_APPROVED_SIGNING_STARTED", user_id=agreement.proposed_by_id, company_id=agreement.company_id,
+            target_id=str(agreement.id)
+        )
+
+def apply_agreement_changes(db: Session, agreement: Agreement):
+    if agreement.agreement_type == AgreementType.PERIOD_CLOSE:
+        # 0. Execute Month-End Close Logic
+        calculate_month_end_close(
+            db, 
+            admin_user_id=agreement.proposed_by_id, 
+            company_id=agreement.company_id,
+            negligent_user_id=agreement.negligent_user_id
+        )
+    else:
+        # 1. Apply Settings
+        settings = db.query(GlobalSettings).filter(
+            GlobalSettings.company_id == agreement.company_id
+        ).first()
+        
+        if not settings:
+            settings = GlobalSettings(company_id=agreement.company_id)
+            db.add(settings)
+            
+        p_set = agreement.proposed_settings or {}
+        settings.charity_percentage = p_set.get('charity_percentage', settings.charity_percentage)
+        settings.partnership_mode = p_set.get('partnership_mode', settings.partnership_mode)
+        settings.labour_share_mode = p_set.get('labour_share_mode', settings.labour_share_mode)
+        settings.currency_symbol = p_set.get('currency_symbol', settings.currency_symbol)
+        settings.capital_pool_percentage = p_set.get('capital_pool_percentage', settings.capital_pool_percentage)
+        settings.labour_pool_percentage = p_set.get('labour_pool_percentage', settings.labour_pool_percentage)
+        settings.contingency_pot_minimum = p_set.get('contingency_pot_minimum', settings.contingency_pot_minimum)
+        
+        # 2. Apply Shares
+        proposed_shares = agreement.proposed_shares or []
+        for p_share in proposed_shares:
+            u_id = p_share.get('user_id')
+            share = db.query(PartnerShare).filter(
+                PartnerShare.user_id == u_id,
+                PartnerShare.company_id == agreement.company_id
             ).first()
             
-            if not settings:
-                settings = GlobalSettings(company_id=agreement.company_id)
-                db.add(settings)
+            if not share:
+                share = PartnerShare(user_id=u_id, company_id=agreement.company_id)
+                db.add(share)
                 
-            p_set = agreement.proposed_settings or {}
-            settings.charity_percentage = p_set.get('charity_percentage', settings.charity_percentage)
-            settings.partnership_mode = p_set.get('partnership_mode', settings.partnership_mode)
-            settings.labour_share_mode = p_set.get('labour_share_mode', settings.labour_share_mode)
-            settings.currency_symbol = p_set.get('currency_symbol', settings.currency_symbol)
-            settings.capital_pool_percentage = p_set.get('capital_pool_percentage', settings.capital_pool_percentage)
-            settings.labour_pool_percentage = p_set.get('labour_pool_percentage', settings.labour_pool_percentage)
-            settings.contingency_pot_minimum = p_set.get('contingency_pot_minimum', settings.contingency_pot_minimum)
-            
-            # 2. Apply Shares
-            proposed_shares = agreement.proposed_shares or []
-            for p_share in proposed_shares:
-                u_id = p_share.get('user_id')
-                share = db.query(PartnerShare).filter(
-                    PartnerShare.user_id == u_id,
-                    PartnerShare.company_id == agreement.company_id
-                ).first()
-                
-                if not share:
-                    share = PartnerShare(user_id=u_id, company_id=agreement.company_id)
-                    db.add(share)
-                    
-                share.capital_share_fixed = p_share.get('capital_share_fixed', share.capital_share_fixed)
-                share.labor_share_variable = p_share.get('labor_share_variable', share.labor_share_variable)
-                share.voluntary_charity_percentage = p_share.get('voluntary_charity_percentage', share.voluntary_charity_percentage)
-            
-        # 3. Mark Agreement as Approved
-        agreement.status = AgreementStatus.APPROVED
-        agreement.effective_at = datetime.now(timezone.utc)
+            share.capital_share_fixed = p_share.get('capital_share_fixed', share.capital_share_fixed)
+            share.labor_share_variable = p_share.get('labor_share_variable', share.labor_share_variable)
+            share.voluntary_charity_percentage = p_share.get('voluntary_charity_percentage', share.voluntary_charity_percentage)
         
-        db.commit()
-        log_audit_event(
-            db, action="AGREEMENT_APPLIED", user_id=agreement.proposed_by_id, company_id=agreement.company_id,
-            target_id=str(agreement.id), details={"type": agreement.agreement_type.value if agreement.agreement_type else "PARAMETER_CHANGE"}
-        )
+    # 3. Mark Agreement as Executed
+    agreement.status = AgreementStatus.EXECUTED
+    agreement.effective_at = datetime.now(timezone.utc)
+    
+    db.commit()
+    log_audit_event(
+        db, action="AGREEMENT_EXECUTED", user_id=agreement.proposed_by_id, company_id=agreement.company_id,
+        target_id=str(agreement.id), details={"type": agreement.agreement_type.value if agreement.agreement_type else "PARAMETER_CHANGE"}
+    )
+
+def generate_agreement_pdf_bytes(db: Session, agreement: Agreement) -> bytes:
+    """Generate a PDF document based on selected templates and agreement parameters."""
+    
+    # 1. Fetch parameters
+    params_html = "<h2>Agreement Parameters</h2><ul>"
+    if agreement.proposed_settings:
+        for k, v in agreement.proposed_settings.items():
+            params_html += f"<li><b>{k}:</b> {v}</li>"
+    if agreement.proposed_shares:
+        params_html += "</ul><h3>Proposed Partner Shares</h3><ul>"
+        for share in agreement.proposed_shares:
+            user = db.query(User).filter(User.id == share.get('user_id')).first()
+            uname = user.full_name or user.username if user else "Unknown User"
+            params_html += f"<li><b>{uname}:</b> Capital: {share.get('capital_share_fixed')}%, Labor: {share.get('labor_share_variable')}%, Charity: {share.get('voluntary_charity_percentage')}%</li>"
+    params_html += "</ul>"
+    
+    # 2. Fetch sections
+    global_sections = db.query(DocumentSection).order_by(DocumentSection.order_index).all()
+    company_sections = db.query(CompanyDocumentSection).filter(CompanyDocumentSection.company_id == agreement.company_id).order_by(CompanyDocumentSection.order_index).all()
+    selections = db.query(CompanySectionSelection).filter(CompanySectionSelection.company_id == agreement.company_id).all()
+    
+    # helper for selections
+    def is_included(g_id=None, c_id=None, is_mandatory=False):
+        if is_mandatory:
+            return True
+        sel = next((s for s in selections if s.global_section_id == g_id and s.company_section_id == c_id), None)
+        return sel.is_included if sel else False
+
+    sections_html = ""
+    
+    # Append included global sections
+    for sec in global_sections:
+        if is_included(g_id=sec.id, is_mandatory=sec.is_mandatory):
+            sections_html += f"<h2>{sec.title}</h2>"
+            sections_html += f"<div>{sec.content}</div><br/>"
+            
+    # Append included company sections
+    for sec in company_sections:
+        if is_included(c_id=sec.id, is_mandatory=False): # or True if we assume all company sections are active
+            sections_html += f"<h2>{sec.title} <span style='color:red; font-size:12px;'>(NOT REVIEWED BY SCHOLARS)</span></h2>"
+            sections_html += f"<div>{sec.content}</div><br/>"
+            
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Helvetica, sans-serif; font-size: 12pt; color: #333; }}
+            h1 {{ color: #111; text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }}
+            h2 {{ color: #444; margin-top: 20px; }}
+            .footer {{ text-align: center; font-size: 10pt; color: #777; margin-top: 50px; border-top: 1px solid #ddd; padding-top: 10px; }}
+        </style>
+    </head>
+    <body>
+        <h1>SahimPact Partnership Agreement</h1>
+        <p><b>Agreement ID:</b> {agreement.id}</p>
+        <p><b>Date:</b> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC</p>
+        <p><b>Summary:</b> {agreement.change_summary or 'Standard terms update'}</p>
+        <hr/>
+        {params_html}
+        <hr/>
+        {sections_html}
+        <div class="footer">
+            Generated by SahimPact Platform
+        </div>
+    </body>
+    </html>
+    """
+    
+    pdf_buffer = io.BytesIO()
+    pisa_status = pisa.CreatePDF(io.StringIO(html_content), dest=pdf_buffer)
+    
+    if pisa_status.err:
+        raise Exception("Failed to generate PDF")
+        
+    return pdf_buffer.getvalue()
 
 @router.post("/agreements/propose-close")
 def propose_period_close(
@@ -259,3 +376,61 @@ def propose_period_close(
         target_id=str(new_agreement.id), details={"period_name": period_name, "negligent_user_id": negligent_user_id}
     )
     return {"message": "Period close proposed successfully", "agreement_id": new_agreement.id}
+
+from pydantic import BaseModel
+
+class ProposeParametersRequest(BaseModel):
+    proposed_settings: Optional[dict] = None
+    proposed_shares: Optional[List[dict]] = None
+    change_summary: Optional[str] = None
+
+@router.post("/agreements/propose-parameters")
+def propose_parameters(
+    req: ProposeParametersRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    company_id: int = Depends(get_current_company_id)
+):
+    existing = db.query(Agreement).filter(
+        Agreement.company_id == company_id,
+        Agreement.status == AgreementStatus.PENDING
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="There is already a pending agreement. Please resolve it first.")
+        
+    new_agreement = Agreement(
+        company_id=company_id,
+        proposed_by_id=current_user.id,
+        agreement_type=AgreementType.PARAMETER_CHANGE,
+        proposed_settings=req.proposed_settings,
+        proposed_shares=req.proposed_shares,
+        change_summary=req.change_summary or "Parameter Change",
+        status=AgreementStatus.PENDING
+    )
+    db.add(new_agreement)
+    db.commit()
+    db.refresh(new_agreement)
+    
+    active_users = db.query(User).filter(
+        User.company_id == company_id,
+        User.is_active == True,
+        or_(User.role == RoleEnum.COMPANY_ADMIN, User.role == RoleEnum.PARTNER)
+    ).all()
+
+    for u in active_users:
+        signoff = AgreementSignoff(
+            agreement_id=new_agreement.id,
+            user_id=u.id,
+            status=AgreementStatus.PENDING
+        )
+        if u.id == current_user.id:
+            signoff.status = AgreementStatus.APPROVED
+            signoff.signed_at = datetime.now(timezone.utc)
+        db.add(signoff)
+        
+    db.commit()
+    log_audit_event(
+        db, action="PROPOSE_PARAMETERS", user_id=current_user.id, company_id=company_id,
+        target_id=str(new_agreement.id), details={"summary": req.change_summary}
+    )
+    return {"message": "Parameter change proposed", "agreement_id": new_agreement.id}

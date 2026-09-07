@@ -24,10 +24,15 @@ import {
     KeyRound,
     UserPlus,
     RefreshCw,
-    Loader2
+    Loader2,
+    FileSignature,
+    GripVertical
 } from "lucide-react";
 
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { SigningConfigCard } from "@/components/SigningConfigCard";
+import { GlobalTemplatesCard } from "@/components/GlobalTemplatesCard";
+import { CompanyTemplatesCard } from "@/components/CompanyTemplatesCard";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -447,9 +452,12 @@ const SystemConfig = () => {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 {role === 'SUPER_ADMIN' && (
-                    <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-10 h-auto bg-bg-surface border border-border-muted/30 p-1 rounded-2xl shadow-sm">
+                    <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 mb-10 h-auto bg-bg-surface border border-border-muted/30 p-1 rounded-2xl shadow-sm">
                         <TabsTrigger value="global" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
                             <Palette className="h-3.5 w-3.5" /> Branding & Identity
+                        </TabsTrigger>
+                        <TabsTrigger value="templates" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
+                            <FileSignature className="h-3.5 w-3.5" /> Legal Templates
                         </TabsTrigger>
                         <TabsTrigger value="companies" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
                             <Building2 className="h-3.5 w-3.5" /> Enterprise Registry
@@ -464,6 +472,16 @@ const SystemConfig = () => {
                         </TabsTrigger>
                         <TabsTrigger value="danger" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground transition-all">
                             <ShieldAlert className="h-3.5 w-3.5" /> Critical Zone
+                        </TabsTrigger>
+                    </TabsList>
+                )}
+                {role === 'COMPANY_ADMIN' && (
+                    <TabsList className="grid w-full grid-cols-2 lg:grid-cols-2 mb-10 h-auto bg-bg-surface border border-border-muted/30 p-1 rounded-2xl shadow-sm">
+                        <TabsTrigger value="global" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
+                            <Palette className="h-3.5 w-3.5" /> Branding & Identity
+                        </TabsTrigger>
+                        <TabsTrigger value="templates" className="flex items-center gap-2 font-black uppercase tracking-widest text-[10px] rounded-xl data-[state=active]:bg-primary data-[state=active]:text-on-primary data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all">
+                            <FileSignature className="h-3.5 w-3.5" /> Contract Builder
                         </TabsTrigger>
                     </TabsList>
                 )}
@@ -543,6 +561,8 @@ const SystemConfig = () => {
                                 </Form>
                             </CardContent>
                         </Card>
+                        
+                        <SigningConfigCard />
                     </div>
 
                     {role !== 'PARTNER' && (
@@ -557,6 +577,14 @@ const SystemConfig = () => {
                                 {isLoading ? 'Updating...' : 'Save Branding Changes'}
                             </Button>
                         </div>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="templates" className="space-y-8">
+                    {role === 'SUPER_ADMIN' ? (
+                        <GlobalTemplatesCard />
+                    ) : (
+                        <CompanyTemplatesCard />
                     )}
                 </TabsContent>
 

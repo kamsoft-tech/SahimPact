@@ -22,6 +22,8 @@ sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..'
 from app.db.database import Base
 from app.models.models import *
 from app.models.contracts import *
+from app.models.signatures import *
+from app.models.templates import *
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -61,8 +63,8 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    database_url = os.environ.get("DATABASE_URL", "postgresql://postgres:password@localhost:5432/sahimpact")
-    config.set_main_option("sqlalchemy.url", database_url)
+    from app.db.database import SQLALCHEMY_DATABASE_URL
+    config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

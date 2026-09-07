@@ -224,11 +224,52 @@ class AgreementResponse(BaseModel):
     period_name: Optional[str] = None
     change_summary: Optional[str] = None
     status: str
-    created_at: datetime
     effective_at: Optional[datetime] = None
     signoffs: List[AgreementSignoffResponse] = []
+    envelope_id: Optional[int] = None
+    envelope_status: Optional[str] = None
+    envelope_provider: Optional[str] = None
+    envelope_provider_ref: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 class SignoffActionRequest(BaseModel):
     action: str # "APPROVE" or "REJECT"
+
+# Templates
+class DocumentSectionBase(BaseModel):
+    title: str
+    content: str
+    is_mandatory: bool = False
+    order_index: int = 0
+
+class DocumentSectionCreate(DocumentSectionBase):
+    pass
+
+class DocumentSectionResponse(DocumentSectionBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class CompanyDocumentSectionBase(BaseModel):
+    title: str
+    content: str
+    order_index: int = 0
+
+class CompanyDocumentSectionCreate(CompanyDocumentSectionBase):
+    pass
+
+class CompanyDocumentSectionResponse(CompanyDocumentSectionBase):
+    id: int
+    company_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class CompanySectionSelectionUpdate(BaseModel):
+    global_section_id: Optional[int] = None
+    company_section_id: Optional[int] = None
+    is_included: bool
+
+class CompanySectionSelectionResponse(CompanySectionSelectionUpdate):
+    id: int
+    company_id: int
+    model_config = ConfigDict(from_attributes=True)
+

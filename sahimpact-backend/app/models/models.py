@@ -19,6 +19,18 @@ class AuditMixin:
     def updated_by_id(cls):
         return Column(Integer, ForeignKey("users.id"), nullable=True)
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True)
+    action = Column(String(255), nullable=False)
+    target_id = Column(String(255), nullable=True)
+    details = Column(String(1000), nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
 
 
 class RoleEnum(str, enum.Enum):
@@ -44,12 +56,20 @@ class Company(Base, TimestampMixin, AuditMixin):
     name = Column(String, unique=True, index=True, nullable=False)
     is_active = Column(Boolean, default=True)
 
-    users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="company", foreign_keys="User.company_id", cascade="all, delete-orphan")
     accounts = relationship("Account", back_populates="company", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="company", cascade="all, delete-orphan")
     settings = relationship("GlobalSettings", back_populates="company", uselist=False, cascade="all, delete-orphan")
     monthly_reports = relationship("MonthlyReport", back_populates="company", cascade="all, delete-orphan")
 
+class UserCompanyLink(Base):
+    __tablename__ = "user_company_links"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    
+    user = relationship("User", foreign_keys=[user_id], back_populates="company_links")
+    company = relationship("Company", foreign_keys=[company_id])
 
 class User(Base, TimestampMixin, AuditMixin):
     __tablename__ = "users"
@@ -62,12 +82,17 @@ class User(Base, TimestampMixin, AuditMixin):
     role = Column(Enum(RoleEnum), default=RoleEnum.PARTNER)
     is_active = Column(Boolean, default=True)
     mfa_secret = Column(String, nullable=True)
+    mfa_enabled = Column(Boolean, default=False)
     email = Column(String, nullable=True) # Added for password recovery
+    requires_password_change = Column(Boolean, default=False)
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
 
-    company = relationship("Company", back_populates="users")
-    partner_share = relationship("PartnerShare", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    transactions_created = relationship("Transaction", back_populates="created_by_user")
-    time_entries = relationship("TimeEntry", back_populates="user", cascade="all, delete-orphan")
+    company = relationship("Company", back_populates="users", foreign_keys="User.company_id")
+    company_links = relationship("UserCompanyLink", back_populates="user", cascade="all, delete-orphan", foreign_keys="UserCompanyLink.user_id")
+    partner_share = relationship("PartnerShare", back_populates="user", uselist=False, cascade="all, delete-orphan", foreign_keys="PartnerShare.user_id")
+    transactions_created = relationship("Transaction", back_populates="created_by_user", foreign_keys="Transaction.created_by_id")
+    time_entries = relationship("TimeEntry", back_populates="user", cascade="all, delete-orphan", foreign_keys="TimeEntry.user_id")
 
     @classmethod
     def validate_username(cls, username: str):
@@ -95,7 +120,7 @@ class PartnerShare(Base, TimestampMixin, AuditMixin):
     labor_share_variable = Column(Float, default=0.0) # Percentage or Hours Placeholder
     voluntary_charity_percentage = Column(Float, default=0.0)
 
-    user = relationship("User", back_populates="partner_share")
+    user = relationship("User", back_populates="partner_share", foreign_keys=[user_id])
 
 class TimeEntry(Base, TimestampMixin, AuditMixin):
     __tablename__ = "time_entries"
@@ -110,7 +135,7 @@ class TimeEntry(Base, TimestampMixin, AuditMixin):
     description = Column(String, nullable=True)
     is_closed = Column(Boolean, default=False)
 
-    user = relationship("User", back_populates="time_entries")
+    user = relationship("User", back_populates="time_entries", foreign_keys=[user_id])
 
 class Account(Base, TimestampMixin, AuditMixin):
     __tablename__ = "accounts"
@@ -137,7 +162,7 @@ class Transaction(Base, TimestampMixin, AuditMixin):
     is_closed = Column(Boolean, default=False) # Locking mechanism
 
     company = relationship("Company", back_populates="transactions")
-    created_by_user = relationship("User", back_populates="transactions_created")
+    created_by_user = relationship("User", back_populates="transactions_created", foreign_keys=[created_by_id])
     entries = relationship("JournalEntry", back_populates="transaction", cascade="all, delete-orphan")
     expense_receipt = relationship("ExpenseReceipt", back_populates="transaction", uselist=False, cascade="all, delete-orphan")
 
@@ -200,6 +225,7 @@ class MonthlyReport(Base, TimestampMixin, AuditMixin):
 class AgreementStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
+    EXECUTED = "EXECUTED"
     REJECTED = "REJECTED"
     SUPERSEDED = "SUPERSEDED"
 
@@ -231,6 +257,7 @@ class Agreement(Base, TimestampMixin, AuditMixin):
     proposed_by = relationship("User", foreign_keys=[proposed_by_id])
     negligent_user = relationship("User", foreign_keys=[negligent_user_id])
     signoffs = relationship("AgreementSignoff", back_populates="agreement", cascade="all, delete-orphan")
+    envelope = relationship("app.models.signatures.SigningEnvelope", back_populates="agreement", uselist=False, cascade="all, delete-orphan")
 
 class AgreementSignoff(Base, TimestampMixin, AuditMixin):
     __tablename__ = "agreement_signoffs"
@@ -242,4 +269,38 @@ class AgreementSignoff(Base, TimestampMixin, AuditMixin):
     status = Column(Enum(AgreementStatus), default=AgreementStatus.PENDING) # PENDING, APPROVED, REJECTED
 
     agreement = relationship("Agreement", back_populates="signoffs")
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
+
+class AllocationBasisEnum(str, enum.Enum):
+    EQUAL = "EQUAL"
+    PROPORTIONAL = "PROPORTIONAL"
+    FIXED = "FIXED"
+    
+class MasterEntity(Base, TimestampMixin, AuditMixin):
+    __tablename__ = "master_entities"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    
+class CapitalPool(Base, TimestampMixin, AuditMixin):
+    __tablename__ = "capital_pools"
+    id = Column(Integer, primary_key=True, index=True)
+    master_entity_id = Column(Integer, ForeignKey("master_entities.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    total_amount = Column(Float, default=0.0)
+    
+class AllocationRule(Base, TimestampMixin, AuditMixin):
+    __tablename__ = "allocation_rules"
+    id = Column(Integer, primary_key=True, index=True)
+    pool_id = Column(Integer, ForeignKey("capital_pools.id", ondelete="CASCADE"), nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    basis = Column(Enum(AllocationBasisEnum), nullable=False)
+    value = Column(Float, nullable=False)
+    cap_amount = Column(Float, nullable=True)
+    schedule_cron = Column(String, nullable=True)
+    
+class Allocation(Base, TimestampMixin, AuditMixin):
+    __tablename__ = "allocations"
+    id = Column(Integer, primary_key=True, index=True)
+    rule_id = Column(Integer, ForeignKey("allocation_rules.id", ondelete="CASCADE"), nullable=False)
+    amount = Column(Float, nullable=False)
+    allocated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

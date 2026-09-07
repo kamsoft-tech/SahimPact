@@ -210,7 +210,7 @@ def login_for_access_token(
     
     # MFA Logic
     totp_code = request.headers.get("X-TOTP-Code")
-    mfa_verified = False
+    mfa_verified = not user.mfa_enabled
     if user.mfa_enabled and totp_code:
         totp = pyotp.TOTP(user.mfa_secret)
         if totp.verify(totp_code):
